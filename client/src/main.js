@@ -212,6 +212,13 @@ class Game {
       this.daynight.setHour(parseFloat(CFG.urlHour));
     }
     if (CFG.urlWeather) this.weather.force(CFG.urlWeather);
+    if (CFG.urlSpawn) {
+      const s = CFG.urlSpawn;
+      this.player.position.set(s.x, 0, s.z);
+      this.player.body.position.set(s.x, 1, s.z);
+      this.cameraRig.yaw = s.yaw;
+      this.chunks.warmup(s.x, s.z);
+    }
     this.setState('playing');
     this.cameraRig.setMode('foot');
     this.cameraRig.yaw = Math.PI * 0.75;
@@ -275,6 +282,7 @@ class Game {
     const G = this;
     window.__GTA = G;
     setTimeout(() => {
+      if (CFG.urlSpawn?.noCar) return; // scenic screenshot mode: stay on foot
       try {
         // deterministic: put player + a fresh car on the nearest road, get in
         const n = G.nav.nearestNode(G.player.position.x, G.player.position.z);

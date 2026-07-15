@@ -60,7 +60,51 @@ export class PropFactory {
       lightCone: new THREE.CylinderGeometry(0.12, 1.7, 4.9, 10, 1, true)
         .translate(0, 5.2 - 2.45, 1.15),
       palm: this._makePalmGeo(),
+      acbox: new THREE.BoxGeometry(1.6, 1.0, 1.6).translate(0, 0.5, 0),
+      tank: new THREE.CylinderGeometry(1.1, 1.1, 2.4, 10).translate(0, 1.2, 0),
+      antenna: new THREE.CylinderGeometry(0.05, 0.08, 5.5, 5).translate(0, 2.75, 0),
     };
+    this.mats.roof = new THREE.MeshStandardMaterial({ color: '#6a6d72', roughness: 0.8, metalness: 0.3 });
+    this.mats.tank = new THREE.MeshStandardMaterial({ color: '#7a6a55', roughness: 0.85 });
+  }
+
+  /** rooftop clutter (AC units, water tanks, antennas) for flat-roof buildings */
+  buildRoofDetails(buildings) {
+    const items = { acbox: [], tank: [], antenna: [] };
+    for (const b of buildings) {
+      const [x, z, w, d, h, , style] = b;
+      if (h < 12 || style >= 14) continue; // skip houses/low buildings
+      const tiers = b[8];
+      let topW = w, topD = d, topY = h;
+      if (tiers && tiers.length) {
+        const last = tiers[tiers.length - 1];
+        topW = w * last[0]; topD = d * last[1];
+      }
+      let seed = Math.abs((x * 131 + z * 37) | 0);
+      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      const n = 1 + (seed % 3);
+      for (let i = 0; i < n; i++) {
+        const kind = rnd() < 0.5 ? 'acbox' : rnd() < 0.7 ? 'tank' : 'antenna';
+        items[kind].push([
+          x + (rnd() - 0.5) * topW * 0.55,
+          z + (rnd() - 0.5) * topD * 0.55,
+          topY,
+        ]);
+      }
+    }
+    const meshes = [];
+    const m4 = new THREE.Matrix4();
+    for (const [kind, list] of Object.entries(items)) {
+      if (!list.length) continue;
+      const mat = kind === 'tank' ? this.mats.tank : this.mats.roof;
+      const im = new THREE.InstancedMesh(this.geo[kind], mat, list.length);
+      list.forEach((p, i) => {
+        m4.makeTranslation(p[0], p[2], p[1]);
+        im.setMatrixAt(i, m4);
+      });
+      meshes.push(im);
+    }
+    return meshes;
   }
 
   _makePalmGeo() {
@@ -123,7 +167,7 @@ export class PropFactory {
           const palms = [], regular = [];
           for (const p of list) {
             const d = this.G.city.districtAt(p[0], p[1]);
-            if (d === DISTRICT.DOWNTOWN || d === DISTRICT.INDUSTRIAL || p[0] < -600) palms.push(p);
+            if (d === DISTRICT.DOWNTOWN || d === DISTRICT.INDUSTRIAL || d === DISTRICT.BEACH) palms.push(p);
             else regular.push(p);
           }
           if (palms.length) {

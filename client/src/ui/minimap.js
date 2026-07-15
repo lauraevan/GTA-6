@@ -6,7 +6,7 @@ import { DISTRICT } from '../world/cityData.js';
 const MAP_COLORS = {
   [DISTRICT.WATER]: '#1d4560', [DISTRICT.DOWNTOWN]: '#3c4148', [DISTRICT.COMMERCIAL]: '#40444a',
   [DISTRICT.RESIDENTIAL]: '#3b4438', [DISTRICT.INDUSTRIAL]: '#42403a', [DISTRICT.RURAL]: '#33402c',
-  [DISTRICT.PARK]: '#2e4f2e',
+  [DISTRICT.PARK]: '#2e4f2e', [DISTRICT.BEACH]: '#8f835e',
 };
 
 export class GPS {

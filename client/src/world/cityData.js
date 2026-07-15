@@ -4,11 +4,11 @@
 import { CFG } from '../core/config.js';
 
 export const DISTRICT = {
-  WATER: 0, DOWNTOWN: 1, COMMERCIAL: 2, RESIDENTIAL: 3, INDUSTRIAL: 4, RURAL: 5, PARK: 6,
+  WATER: 0, DOWNTOWN: 1, COMMERCIAL: 2, RESIDENTIAL: 3, INDUSTRIAL: 4, RURAL: 5, PARK: 6, BEACH: 7,
 };
 export const DISTRICT_NAMES = {
-  0: 'Neustadt Marina', 1: 'Innenstadt', 2: 'Marktviertel', 3: 'Gartenstadt',
-  4: 'Hafen Docks', 5: 'Umland', 6: 'Stadtpark',
+  0: 'Neustadt Bay', 1: 'Innenstadt', 2: 'Marktviertel', 3: 'Gartenstadt',
+  4: 'Hafen Docks', 5: 'Umland', 6: 'Stadtpark', 7: 'Strandpromenade',
 };
 export const KIND = {
   GENERIC: 0, SHOP: 1, BANK: 2, POLICE: 3, HOSPITAL: 4, SAFEHOUSE: 5,

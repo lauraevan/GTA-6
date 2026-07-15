@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GROUP } from '../physics/physics.js';
 import { BuildingFactory, STYLE } from './buildingFactory.js';
 import { RoadFactory } from './roadFactory.js';
@@ -48,15 +49,27 @@ export class ChunkManager {
     ground.receiveShadow = true;
     G.scene.add(ground);
 
-    // water strip (west marina)
-    const waterW = city.linePos(3) - (-city.half);
+    // water: one merged surface built from the WATER district cells (bay + coves)
     this.waterMat = new THREE.MeshStandardMaterial({
-      color: '#2a7a9a', transparent: true, opacity: 0.82, roughness: 0.2, metalness: 0.4 });
-    const water = new THREE.Mesh(
-      new THREE.PlaneGeometry(waterW, city.meta.worldSize), this.waterMat);
-    water.rotation.x = -Math.PI / 2;
-    water.position.set(-city.half + waterW / 2, 0.14, 0);
-    G.scene.add(water);
+      color: '#2a7a9a', transparent: true, opacity: 0.82, roughness: 0.15, metalness: 0.5,
+      envMapIntensity: 1.2 });
+    const waterCells = [];
+    for (let bz = 0; bz < city.meta.blocks; bz++) {
+      for (let bx = 0; bx < city.meta.blocks; bx++) {
+        if (city.districts[bz][bx] === 0) {
+          const g = new THREE.PlaneGeometry(city.blockSize + 0.5, city.blockSize + 0.5);
+          g.rotateX(-Math.PI / 2);
+          g.translate(-city.half + (bx + 0.5) * city.blockSize, 0,
+            -city.half + (bz + 0.5) * city.blockSize);
+          waterCells.push(g);
+        }
+      }
+    }
+    if (waterCells.length) {
+      const water = new THREE.Mesh(mergeGeometries(waterCells), this.waterMat);
+      water.position.y = 0.14;
+      G.scene.add(water);
+    }
     this.waterT = 0;
 
     // distant skyline: all tall buildings as one dark instanced mesh
@@ -195,6 +208,11 @@ export class ChunkManager {
           group.add(m);
           disposables.push(m); // InstancedMesh.dispose frees instance buffers
         }
+      }
+      // rooftop clutter over the tall stuff
+      for (const m of this.props.buildRoofDetails(data.b)) {
+        group.add(m);
+        disposables.push(m);
       }
 
       // --- props

@@ -33,7 +33,7 @@ WORLD = BLOCKS * BLOCK
 HALF = WORLD / 2.0
 
 # district codes
-WATER, DOWNTOWN, COMMERCIAL, RESIDENTIAL, INDUSTRIAL, RURAL, PARK = 0, 1, 2, 3, 4, 5, 6
+WATER, DOWNTOWN, COMMERCIAL, RESIDENTIAL, INDUSTRIAL, RURAL, PARK, BEACH = 0, 1, 2, 3, 4, 5, 6, 7
 
 # road types
 T_STREET, T_AVENUE, T_HIGHWAY = 0, 1, 2
@@ -65,6 +65,21 @@ def cell_center(b: int) -> float:
 # districts
 # ---------------------------------------------------------------------------
 
+def is_water_cell(bx: int, bz: int) -> bool:
+    """West coastline with a large natural bay biting into the city."""
+    if bx <= 1:
+        return True
+    # Neustadt Bay proper: ellipse centred just off the west edge
+    ex = (bx + 0.5) / 4.5
+    ez = (bz + 0.5 - 16.0) / 7.5
+    if ex * ex + ez * ez < 1.0:
+        return True
+    # a soft cove up north
+    cx = (bx + 0.5 - 0.0) / 3.2
+    cz = (bz + 0.5 - 3.0) / 2.6
+    return cx * cx + cz * cz < 1.0
+
+
 def build_districts(rng: random.Random) -> list[list[int]]:
     """district[bz][bx] -> code"""
     d = [[RURAL] * BLOCKS for _ in range(BLOCKS)]
@@ -72,10 +87,10 @@ def build_districts(rng: random.Random) -> list[list[int]]:
     for bz in range(BLOCKS):
         for bx in range(BLOCKS):
             r = max(abs(bx - c), abs(bz - c))
-            if bx <= 2:
+            if is_water_cell(bx, bz):
                 d[bz][bx] = WATER
-            elif bx <= 5 and 8 <= bz <= 23:
-                d[bz][bx] = INDUSTRIAL
+            elif bx <= 5 and (5 <= bz <= 8 or 24 <= bz <= 27):
+                d[bz][bx] = INDUSTRIAL       # two harbor pockets around the bay
             elif r <= 3.5:
                 d[bz][bx] = DOWNTOWN
             elif r <= 6.5:
@@ -84,6 +99,18 @@ def build_districts(rng: random.Random) -> list[list[int]]:
                 d[bz][bx] = RESIDENTIAL
             else:
                 d[bz][bx] = RURAL
+    # beach: land cells hugging the water on the west side
+    for bz in range(BLOCKS):
+        for bx in range(BLOCKS):
+            if d[bz][bx] in (WATER,):
+                continue
+            if bx > 8:
+                continue
+            neighbours = [(bx - 1, bz), (bx + 1, bz), (bx, bz - 1), (bx, bz + 1)]
+            if any(0 <= nx < BLOCKS and 0 <= nz < BLOCKS and d[nz][nx] == WATER
+                   for nx, nz in neighbours):
+                if d[bz][bx] != INDUSTRIAL:
+                    d[bz][bx] = BEACH
     # parks: central plaza + a few scattered greens (deterministic picks)
     d[16][15] = PARK
     park_candidates = [(9, 10), (21, 20), (11, 22), (24, 12)]
@@ -176,9 +203,18 @@ def build_nav(seg):
 # buildings
 # ---------------------------------------------------------------------------
 
-# style indices are interpreted by the client's building factory
-S_GLASS_A, S_GLASS_B, S_OFFICE, S_BRICK, S_CONCRETE, S_SHOPFRONT, \
-    S_HOUSE_A, S_HOUSE_B, S_WAREHOUSE, S_CIVIC = range(10)
+# style indices are interpreted by the client's building factory (22 archetypes)
+(S_GLASS_A, S_GLASS_B, S_GLASS_C, S_GLASS_D,
+ S_OFFICE_A, S_OFFICE_B, S_OFFICE_C,
+ S_BRICK_A, S_BRICK_B, S_BRICK_C,
+ S_CONCRETE_A, S_CONCRETE_B, S_ARTDECO, S_SHOPFRONT,
+ S_HOUSE_A, S_HOUSE_B, S_HOUSE_C, S_HOUSE_D,
+ S_WAREHOUSE_A, S_WAREHOUSE_B, S_CIVIC, S_ROWHOUSE) = range(22)
+
+GLASS = [S_GLASS_A, S_GLASS_B, S_GLASS_C, S_GLASS_D]
+OFFICE = [S_OFFICE_A, S_OFFICE_B, S_OFFICE_C]
+BRICK = [S_BRICK_A, S_BRICK_B, S_BRICK_C]
+HOUSES = [S_HOUSE_A, S_HOUSE_B, S_HOUSE_C, S_HOUSE_D]
 
 SPECIAL_BLOCKS = {
     (17, 13): ("bank", K_BANK),
@@ -216,9 +252,12 @@ def gen_block_buildings(rng, d, bx, bz, pois):
     special = SPECIAL_BLOCKS.get(key)
     is_shop_block = key in SHOP_BLOCKS
 
-    def add(b_x, b_z, w, dd, h, ry, style, kind=K_GENERIC):
-        buildings.append([round(b_x, 2), round(b_z, 2), round(w, 2), round(dd, 2),
-                          round(h, 2), ry, style, kind])
+    def add(b_x, b_z, w, dd, h, ry, style, kind=K_GENERIC, tiers=None):
+        entry = [round(b_x, 2), round(b_z, 2), round(w, 2), round(dd, 2),
+                 round(h, 2), ry, style, kind]
+        if tiers:
+            entry.append([[round(a, 2), round(b, 2), round(c, 2)] for a, b, c in tiers])
+        buildings.append(entry)
         return buildings[-1]
 
     def door_of(b):
@@ -236,17 +275,17 @@ def gen_block_buildings(rng, d, bx, bz, pois):
         elif kind == K_POLICE:
             b = add(cx, cz, 26, 20, 14, ry, S_CIVIC, kind)
         elif kind == K_HOSPITAL:
-            b = add(cx, cz, 30, 24, 26, ry, S_CONCRETE, kind)
+            b = add(cx, cz, 30, 24, 26, ry, S_CONCRETE_A, kind)
         elif kind == K_SAFEHOUSE:
             b = add(cx - 10, cz - 8, 12, 10, 7, ry, S_HOUSE_A, kind)
             add(cx + 12, cz + 10, 10, 8, 5, (ry + 2) % 4, S_HOUSE_B)
         elif kind == K_GARAGE:
-            b = add(cx, cz, 26, 22, 9, ry, S_WAREHOUSE, kind)
+            b = add(cx, cz, 26, 22, 9, ry, S_WAREHOUSE_A, kind)
         elif kind == K_GUNSHOP:
             b = add(cx - 8, cz, 14, 12, 8, ry, S_SHOPFRONT, kind)
-            add(cx + 12, cz, 12, 12, 10, ry, S_BRICK)
+            add(cx + 12, cz, 12, 12, 10, ry, rng.choice(BRICK))
         elif kind == K_SPRAY:
-            b = add(cx, cz - 6, 16, 14, 7, ry, S_WAREHOUSE, kind)
+            b = add(cx, cz - 6, 16, 14, 7, ry, S_WAREHOUSE_B, kind)
         entry = {"pos": [round(b[0], 2), round(b[1], 2)], "door": door_of(b),
                  "ry": b[5], "block": [bx, bz]}
         pois.setdefault(name, []).append(entry)
@@ -264,35 +303,50 @@ def gen_block_buildings(rng, d, bx, bz, pois):
 
     if dist == DOWNTOWN:
         n = rng.randint(1, 2)
+
+        def tower(px, pz, w, dd, h):
+            # 60% of towers get art-deco style setbacks (stacked tiers)
+            tiers = None
+            if rng.random() < 0.6 and h > 45:
+                if rng.random() < 0.5:
+                    tiers = [(1, 1, 0.55), (0.74, 0.74, 0.3), (0.5, 0.5, 0.15)]
+                else:
+                    tiers = [(1, 1, 0.7), (0.62, 0.62, 0.3)]
+            add(px, pz, w, dd, h, rng.randrange(4),
+                rng.choice(GLASS + OFFICE + [S_ARTDECO, S_CONCRETE_B]), K_GENERIC, tiers)
+
         if n == 1:
-            add(cx, cz, rng.uniform(24, 34), rng.uniform(24, 34),
-                rng.uniform(50, 130), rng.randrange(4), rng.choice([S_GLASS_A, S_GLASS_B, S_OFFICE]))
+            tower(cx, cz, rng.uniform(24, 34), rng.uniform(24, 34), rng.uniform(55, 135))
         else:
-            add(cx - 11, cz - 11, rng.uniform(16, 21), rng.uniform(16, 21),
-                rng.uniform(45, 110), rng.randrange(4), rng.choice([S_GLASS_A, S_GLASS_B]))
-            add(cx + 11, cz + 11, rng.uniform(14, 20), rng.uniform(14, 20),
-                rng.uniform(25, 60), rng.randrange(4), rng.choice([S_OFFICE, S_CONCRETE]))
+            tower(cx - 11, cz - 11, rng.uniform(16, 21), rng.uniform(16, 21), rng.uniform(45, 115))
+            tower(cx + 11, cz + 11, rng.uniform(14, 20), rng.uniform(14, 20), rng.uniform(25, 65))
         if rng.random() < 0.3:
             props.append([round(cx + rng.uniform(-18, 18), 2),
                           round(cz + rng.uniform(-18, 18), 2), P_BILLBOARD, rng.randrange(4)])
 
     elif dist == COMMERCIAL:
-        cells = [(-12, -12), (12, -12), (-12, 12), (12, 12)]
-        rng.shuffle(cells)
-        n = rng.randint(3, 4)
-        first = True
-        for ox, oz in cells[:n]:
-            style = rng.choice([S_BRICK, S_CONCRETE, S_SHOPFRONT, S_OFFICE])
-            kind = K_SHOP if (is_shop_block and first and style == S_SHOPFRONT) else K_GENERIC
-            if is_shop_block and first:
-                style, kind = S_SHOPFRONT, K_SHOP
-                first = False
-            b = add(cx + ox + rng.uniform(-3, 3), cz + oz + rng.uniform(-3, 3),
-                    rng.uniform(13, 19), rng.uniform(13, 19),
-                    rng.uniform(8, 24), rng.randrange(4), style, kind)
-            if kind == K_SHOP:
-                pois.setdefault("shops", []).append(
-                    {"pos": [b[0], b[1]], "door": door_of(b), "ry": b[5], "block": [bx, bz]})
+        # sometimes a whole row-house strip instead of separate lots
+        if rng.random() < 0.25 and not is_shop_block:
+            ry = rng.choice([0, 1])
+            add(cx, cz - 12, 40, 13, rng.uniform(10, 16), ry, S_ROWHOUSE)
+            add(cx, cz + 12, 40, 13, rng.uniform(10, 16), ry, rng.choice(BRICK))
+        else:
+            cells = [(-12, -12), (12, -12), (-12, 12), (12, 12)]
+            rng.shuffle(cells)
+            n = rng.randint(3, 4)
+            first = True
+            for ox, oz in cells[:n]:
+                style = rng.choice(BRICK + OFFICE + [S_CONCRETE_A, S_CONCRETE_B, S_ARTDECO, S_SHOPFRONT])
+                kind = K_GENERIC
+                if is_shop_block and first:
+                    style, kind = S_SHOPFRONT, K_SHOP
+                    first = False
+                b = add(cx + ox + rng.uniform(-3, 3), cz + oz + rng.uniform(-3, 3),
+                        rng.uniform(13, 19), rng.uniform(13, 19),
+                        rng.uniform(8, 26), rng.randrange(4), style, kind)
+                if kind == K_SHOP:
+                    pois.setdefault("shops", []).append(
+                        {"pos": [b[0], b[1]], "door": door_of(b), "ry": b[5], "block": [bx, bz]})
         if rng.random() < 0.5:
             props.append([round(cx + rng.uniform(-18, 18), 2),
                           round(cz + rng.uniform(-18, 18), 2), P_DUMPSTER, rng.randrange(4)])
@@ -304,7 +358,7 @@ def gen_block_buildings(rng, d, bx, bz, pois):
         first = True
         for ox, oz in cells[:n]:
             kind = K_HOUSE
-            style = rng.choice([S_HOUSE_A, S_HOUSE_B])
+            style = rng.choice(HOUSES)
             if is_shop_block and first:
                 style, kind = S_SHOPFRONT, K_SHOP
                 first = False
@@ -324,7 +378,8 @@ def gen_block_buildings(rng, d, bx, bz, pois):
             ox = -10 if (n == 2 and k == 0) else (10 if n == 2 else 0)
             add(cx + ox, cz + rng.uniform(-6, 6),
                 rng.uniform(18, 26), rng.uniform(14, 22),
-                rng.uniform(8, 15), rng.randrange(4), S_WAREHOUSE, K_WAREHOUSE)
+                rng.uniform(8, 15), rng.randrange(4),
+                rng.choice([S_WAREHOUSE_A, S_WAREHOUSE_B]), K_WAREHOUSE)
         for _ in range(rng.randint(2, 6)):
             props.append([round(cx + rng.uniform(-18, 18), 2),
                           round(cz + rng.uniform(-18, 18), 2), P_CONTAINER, rng.randrange(4)])
@@ -332,15 +387,28 @@ def gen_block_buildings(rng, d, bx, bz, pois):
             props.append([round(cx + rng.uniform(-14, 14), 2),
                           round(cz + rng.uniform(-14, 14), 2), P_CRANE, rng.randrange(4)])
 
+    elif dist == BEACH:
+        # sand, palms, benches — the Strandpromenade
+        for _ in range(rng.randint(4, 9)):
+            props.append([round(cx + rng.uniform(-22, 22), 2),
+                          round(cz + rng.uniform(-22, 22), 2), P_TREE, 0])
+        for _ in range(rng.randint(1, 3)):
+            props.append([round(cx + rng.uniform(-18, 18), 2),
+                          round(cz + rng.uniform(-18, 18), 2), P_BENCH, rng.randrange(4)])
+        if rng.random() < 0.2:
+            add(cx + rng.uniform(-12, 12), cz + rng.uniform(-12, 12),
+                rng.uniform(5, 7), rng.uniform(4, 6), 3.6,
+                rng.randrange(4), S_HOUSE_C)  # beach kiosk hut
+
     elif dist == RURAL:
         if rng.random() < 0.22:
             add(cx + rng.uniform(-10, 10), cz + rng.uniform(-10, 10),
                 rng.uniform(9, 13), rng.uniform(8, 11), rng.uniform(5, 7),
-                rng.randrange(4), S_HOUSE_B, K_FARM)
+                rng.randrange(4), rng.choice([S_HOUSE_B, S_HOUSE_D]), K_FARM)
             if rng.random() < 0.6:
                 add(cx + rng.uniform(-16, 16), cz + rng.uniform(-16, 16),
                     rng.uniform(10, 14), rng.uniform(8, 12), rng.uniform(6, 9),
-                    rng.randrange(4), S_WAREHOUSE)
+                    rng.randrange(4), S_WAREHOUSE_A)
         for _ in range(rng.randint(1, 5)):
             props.append([round(cx + rng.uniform(-24, 24), 2),
                           round(cz + rng.uniform(-24, 24), 2),
@@ -411,13 +479,13 @@ def build_activities(rng):
         },
         {
             "id": "harbor",
-            "name": "Harbor Sprint",
+            "name": "Bayside Sprint",
             "laps": 1,
             "entry": 100,
             "prize": 900,
             "checkpoints": [
-                node_xy(4, 22), node_xy(4, 18), node_xy(4, 14), node_xy(4, 10),
-                node_xy(8, 10), node_xy(8, 14), node_xy(10, 16),
+                node_xy(4, 26), node_xy(4, 22), node_xy(4, 18), node_xy(4, 14),
+                node_xy(4, 10), node_xy(4, 6), node_xy(8, 6), node_xy(10, 8),
             ],
         },
         {
@@ -489,8 +557,8 @@ def generate_city(seed: int = 1337) -> dict:
         "shops": pois.get("shops", []),
         "races": races,
         "stunts": stunts,
-        "theftDrop": {"pos": [round(line_pos(5) + 30, 2), round(line_pos(9) + 30, 2)]},
-        "deliveryDepot": {"pos": [round(line_pos(4) + 30, 2), round(line_pos(19) + 30, 2)]},
+        "theftDrop": {"pos": [round(line_pos(4) + 30, 2), round(line_pos(6) + 30, 2)]},
+        "deliveryDepot": {"pos": [round(line_pos(4) + 30, 2), round(line_pos(25) + 30, 2)]},
         "spawn": {"pos": safe["door"]},
     }
 
@@ -515,12 +583,56 @@ def generate_city(seed: int = 1337) -> dict:
     }
 
 
+def _sanity(city: dict):
+    """POIs must sit on land; the road graph must connect key POIs."""
+    d = city["districts"]
+    half = city["meta"]["worldSize"] / 2
+    bs = city["meta"]["blockSize"]
+
+    def cell(p):
+        return d[min(max(int((p[1] + half) // bs), 0), BLOCKS - 1)][
+            min(max(int((p[0] + half) // bs), 0), BLOCKS - 1)]
+
+    keys = ["safehouse", "garage", "bank", "hospital", "gunshop", "theftDrop", "deliveryDepot"]
+    for k in keys:
+        p = city["pois"][k].get("door") or city["pois"][k]["pos"]
+        assert cell(p) != WATER, f"POI {k} is underwater at {p}"
+
+    # connectivity via BFS over nav edges
+    nodes = city["nav"]["nodes"]
+    adj: dict[int, list[int]] = {}
+    for a, b, _t in city["nav"]["edges"]:
+        adj.setdefault(a, []).append(b)
+        adj.setdefault(b, []).append(a)
+
+    def nearest(p):
+        return min(range(len(nodes)), key=lambda i: (nodes[i][0] - p[0]) ** 2 + (nodes[i][1] - p[1]) ** 2)
+
+    start = nearest(city["pois"]["safehouse"]["door"])
+    seen = {start}
+    stack = [start]
+    while stack:
+        cur = stack.pop()
+        for nb in adj.get(cur, []):
+            if nb not in seen:
+                seen.add(nb)
+                stack.append(nb)
+    for k in ["bank", "theftDrop", "deliveryDepot", "gunshop"]:
+        p = city["pois"][k].get("door") or city["pois"][k]["pos"]
+        assert nearest(p) in seen, f"POI {k} unreachable by road"
+    # every race checkpoint on a reachable node
+    for race in city["pois"]["races"]:
+        for cp in race["checkpoints"]:
+            assert nearest(cp) in seen, f"race {race['id']} checkpoint {cp} unreachable"
+
+
 def main():
     ap = argparse.ArgumentParser(description="Neustadt Bay city generator")
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--out", type=str, default=None)
     args = ap.parse_args()
     city = generate_city(args.seed)
+    _sanity(city)
     text = json.dumps(city, separators=(",", ":"))
     if args.out:
         out = Path(args.out)

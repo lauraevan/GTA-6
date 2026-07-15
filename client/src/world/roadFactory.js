@@ -14,6 +14,7 @@ const DISTRICT_GROUND = {
   [DISTRICT.INDUSTRIAL]: '#565349',
   [DISTRICT.RURAL]: '#48583a',
   [DISTRICT.PARK]: '#3f5c38',
+  [DISTRICT.BEACH]: '#c4b183',
 };
 
 export class RoadFactory {

@@ -32,21 +32,30 @@ const SHOTS = [
   { name: 'day', q: 'medium', hour: 13, weather: 'clear', drive: 3200 },
   { name: 'dusk', q: 'medium', hour: 19.3, weather: 'clear', drive: 2600 },
   { name: 'night-rain', q: 'medium', hour: 22.5, weather: 'rain', drive: 2600 },
+  // scenic on-foot shots: URL spawn params (px/pz/yaw, nocar) — keep to open road
+  { name: 'bay', q: 'medium', hour: 18.9, weather: 'clear', pos: [-718, 26], yaw: -Math.PI / 2 },
+  { name: 'downtown', q: 'medium', hour: 12, weather: 'clear', pos: [2, 178], yaw: Math.PI },
 ];
 
 for (const s of SHOTS) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', (e) => console.log(`[${s.name}] pageerror:`, e.message));
+  const spawnQ = s.pos ? `&px=${s.pos[0]}&pz=${s.pos[1]}&yaw=${s.yaw}&nocar=1` : '';
   await page.goto(
-    `http://127.0.0.1:${PORT}/?smoke=1&quality=${s.q}&hour=${s.hour}&weather=${s.weather}`,
+    `http://127.0.0.1:${PORT}/?smoke=1&quality=${s.q}&rs=1&hour=${s.hour}&weather=${s.weather}${spawnQ}`,
     { waitUntil: 'domcontentloaded' });
   try {
-    await page.waitForFunction(() => window.__GTA?.player?.vehicle?.vp, null, { timeout: 90000 });
-    // drive forward a bit for a natural road framing
-    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' })));
-    await page.waitForTimeout(s.drive);
-    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' })));
-    await page.waitForTimeout(500);
+    if (s.pos) {
+      await page.waitForFunction(() => window.__GTA && window.__GTA.state === 'playing', null, { timeout: 90000 });
+      await page.waitForTimeout(6000);
+    } else {
+      await page.waitForFunction(() => window.__GTA?.player?.vehicle?.vp, null, { timeout: 90000 });
+      // drive forward a bit for a natural road framing
+      await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' })));
+      await page.waitForTimeout(s.drive);
+      await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' })));
+      await page.waitForTimeout(500);
+    }
   } catch (e) {
     console.log(`[${s.name}] setup issue:`, String(e).slice(0, 120));
   }

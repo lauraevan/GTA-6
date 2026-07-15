@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 
 export class AssetLibrary {
   constructor() {
@@ -27,9 +28,13 @@ export class AssetLibrary {
         if (meta.yaw) inner.rotation.y = meta.yaw;
         const root = new THREE.Group();
         root.add(inner);
-        if (meta.fit) this._fit(root, inner, meta.fit, meta.ground ?? false);
+        if (meta.fit) this._fit(root, inner, meta.fit, meta.ground ?? false, meta.fitAxis);
         else if (meta.scale) inner.scale.setScalar(meta.scale);
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        root.userData.animations = gltf.animations ?? [];
+        let skinned = false;
+        root.traverse((o) => { if (o.isSkinnedMesh) skinned = true; });
+        root.userData.skinned = skinned;
         this.cache.set(name, root);
       } catch (e) {
         console.warn(`[assets] failed to load ${name}, falling back to procedural`, e);
@@ -41,16 +46,20 @@ export class AssetLibrary {
 
   /**
    * Uniformly scale + centre `inner` so its bbox matches fit=[w,h,l] as closely
-   * as possible (scale set by length, the dominant gameplay dimension).
-   * ground=true puts the origin at the bbox bottom instead of the centre.
+   * as possible (scale set by length — or height when fitAxis='y', e.g.
+   * characters). ground=true puts the origin at the bbox bottom.
    */
-  _fit(root, inner, fit, ground) {
+  _fit(root, inner, fit, ground, fitAxis = null) {
     inner.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(inner);
     const size = box.getSize(new THREE.Vector3());
-    const [, , targetL] = fit;
-    const srcL = Math.max(size.x, size.z) || 1;
-    const s = targetL / srcL;
+    let s;
+    if (fitAxis === 'y') {
+      s = fit[1] / (size.y || 1);
+    } else {
+      const srcL = Math.max(size.x, size.z) || 1;
+      s = fit[2] / srcL;
+    }
     inner.scale.setScalar(s);
     inner.updateMatrixWorld(true);
     const box2 = new THREE.Box3().setFromObject(inner);
@@ -60,14 +69,20 @@ export class AssetLibrary {
     inner.position.y -= ground ? box2.min.y : c.y;
   }
 
-  /** Returns a fresh clone of a GLB asset, or null → caller builds procedural mesh. */
+  /** Returns a fresh clone of a GLB asset, or null → caller builds procedural mesh.
+   *  Skinned models are cloned via SkeletonUtils so bones/skins stay intact;
+   *  the clone carries `userData.animations` for an AnimationMixer. */
   getModel(name) {
     const tpl = this.cache.get(name);
     if (!tpl) return null;
-    const clone = tpl.clone(true);
-    clone.traverse((o) => {
-      if (o.isMesh && o.material) o.material = o.material.clone();
-    });
+    const clone = tpl.userData.skinned ? skeletonClone(tpl) : tpl.clone(true);
+    if (!tpl.userData.skinned) {
+      clone.traverse((o) => {
+        if (o.isMesh && o.material) o.material = o.material.clone();
+      });
+    }
+    clone.userData.animations = tpl.userData.animations;
+    clone.userData.skinned = tpl.userData.skinned;
     return clone;
   }
 

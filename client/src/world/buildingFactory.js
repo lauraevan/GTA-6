@@ -6,22 +6,40 @@ import * as THREE from 'three';
 import { canvasTexture, noise2d } from '../core/assets.js';
 import { KIND } from './cityData.js';
 
+// 22 building archetypes (indices must match server/worldgen/citygen.py)
 export const STYLE = {
-  GLASS_A: 0, GLASS_B: 1, OFFICE: 2, BRICK: 3, CONCRETE: 4, SHOPFRONT: 5,
-  HOUSE_A: 6, HOUSE_B: 7, WAREHOUSE: 8, CIVIC: 9,
+  GLASS_A: 0, GLASS_B: 1, GLASS_C: 2, GLASS_D: 3,
+  OFFICE_A: 4, OFFICE_B: 5, OFFICE_C: 6,
+  BRICK_A: 7, BRICK_B: 8, BRICK_C: 9,
+  CONCRETE_A: 10, CONCRETE_B: 11, ARTDECO: 12, SHOPFRONT: 13,
+  HOUSE_A: 14, HOUSE_B: 15, HOUSE_C: 16, HOUSE_D: 17,
+  WAREHOUSE_A: 18, WAREHOUSE_B: 19, CIVIC: 20, ROWHOUSE: 21,
 };
+export const HOUSE_STYLES = new Set([STYLE.HOUSE_A, STYLE.HOUSE_B, STYLE.HOUSE_C, STYLE.HOUSE_D]);
 
 const STYLE_DEFS = {
-  [STYLE.GLASS_A]:  { base: '#2e4a56', win: '#9adfe8', lit: '#ffe9b0', cols: 6, rows: 10, winP: 0.92, litP: 0.42 },
-  [STYLE.GLASS_B]:  { base: '#26304a', win: '#a8c4f0', lit: '#ffd98a', cols: 5, rows: 9, winP: 0.9, litP: 0.38 },
-  [STYLE.OFFICE]:   { base: '#6b6f76', win: '#3a4550', lit: '#ffedb8', cols: 5, rows: 8, winP: 0.8, litP: 0.3 },
-  [STYLE.BRICK]:    { base: '#7a4a38', win: '#2c3038', lit: '#ffdf9a', cols: 4, rows: 5, winP: 0.7, litP: 0.35 },
-  [STYLE.CONCRETE]: { base: '#8d8a82', win: '#333c44', lit: '#fff0c0', cols: 4, rows: 6, winP: 0.75, litP: 0.3 },
+  [STYLE.GLASS_A]:  { base: '#2e4a56', win: '#9adfe8', lit: '#ffe9b0', cols: 6, rows: 10, winP: 0.92, litP: 0.42, metal: 0.4 },
+  [STYLE.GLASS_B]:  { base: '#26304a', win: '#a8c4f0', lit: '#ffd98a', cols: 5, rows: 9, winP: 0.9, litP: 0.38, metal: 0.4 },
+  [STYLE.GLASS_C]:  { base: '#1e3a35', win: '#7fd8b8', lit: '#ffedb8', cols: 7, rows: 11, winP: 0.94, litP: 0.4, metal: 0.45 },
+  [STYLE.GLASS_D]:  { base: '#3a2e42', win: '#c8a8e8', lit: '#ffd0e8', cols: 4, rows: 9, winP: 0.88, litP: 0.45, metal: 0.4 },
+  [STYLE.OFFICE_A]: { base: '#6b6f76', win: '#3a4550', lit: '#ffedb8', cols: 5, rows: 8, winP: 0.8, litP: 0.3 },
+  [STYLE.OFFICE_B]: { base: '#8a8378', win: '#2e3844', lit: '#ffe0a0', cols: 6, rows: 7, winP: 0.82, litP: 0.32 },
+  [STYLE.OFFICE_C]: { base: '#5a6068', win: '#48586a', lit: '#d8e8ff', cols: 8, rows: 9, winP: 0.86, litP: 0.28, metal: 0.3 },
+  [STYLE.BRICK_A]:  { base: '#7a4a38', win: '#2c3038', lit: '#ffdf9a', cols: 4, rows: 5, winP: 0.7, litP: 0.35 },
+  [STYLE.BRICK_B]:  { base: '#8f5a44', win: '#33383f', lit: '#ffe9b0', cols: 5, rows: 4, winP: 0.72, litP: 0.4 },
+  [STYLE.BRICK_C]:  { base: '#4f3a33', win: '#3a4550', lit: '#ffce80', cols: 4, rows: 6, winP: 0.68, litP: 0.33 },
+  [STYLE.CONCRETE_A]: { base: '#8d8a82', win: '#333c44', lit: '#fff0c0', cols: 4, rows: 6, winP: 0.75, litP: 0.3 },
+  [STYLE.CONCRETE_B]: { base: '#9a948a', win: '#2a323c', lit: '#ffe9b0', cols: 3, rows: 8, winP: 0.7, litP: 0.28 },
+  [STYLE.ARTDECO]:  { base: '#bfa77f', win: '#2e3440', lit: '#ffe0a0', cols: 5, rows: 12, winP: 0.85, litP: 0.36 },
   [STYLE.SHOPFRONT]:{ base: '#a89a88', win: '#40484e', lit: '#ffe9b0', cols: 3, rows: 3, winP: 0.85, litP: 0.5 },
   [STYLE.HOUSE_A]:  { base: '#c9bfa8', win: '#3a4148', lit: '#ffe9b0', cols: 3, rows: 2, winP: 0.75, litP: 0.45 },
   [STYLE.HOUSE_B]:  { base: '#9ab0a2', win: '#3a4148', lit: '#ffe9b0', cols: 3, rows: 2, winP: 0.75, litP: 0.45 },
-  [STYLE.WAREHOUSE]:{ base: '#7d8288', win: '#454a50', lit: '#cfe0ff', cols: 5, rows: 2, winP: 0.4, litP: 0.2 },
+  [STYLE.HOUSE_C]:  { base: '#c8a284', win: '#39404a', lit: '#ffe0a0', cols: 3, rows: 2, winP: 0.8, litP: 0.5 },
+  [STYLE.HOUSE_D]:  { base: '#8f9ec0', win: '#333a46', lit: '#fff0c0', cols: 4, rows: 2, winP: 0.72, litP: 0.42 },
+  [STYLE.WAREHOUSE_A]: { base: '#7d8288', win: '#454a50', lit: '#cfe0ff', cols: 5, rows: 2, winP: 0.4, litP: 0.2, metal: 0.35 },
+  [STYLE.WAREHOUSE_B]: { base: '#6e5f52', win: '#3c4248', lit: '#ffe0a0', cols: 6, rows: 2, winP: 0.45, litP: 0.22, metal: 0.3 },
   [STYLE.CIVIC]:    { base: '#b0a790', win: '#404a55', lit: '#ffe9b0', cols: 5, rows: 3, winP: 0.85, litP: 0.4 },
+  [STYLE.ROWHOUSE]: { base: '#a56a4e', win: '#333940', lit: '#ffe4a8', cols: 10, rows: 4, winP: 0.78, litP: 0.4 },
 };
 
 export class BuildingFactory {
@@ -80,7 +98,7 @@ export class BuildingFactory {
     const emissiveMap = canvasTexture(128, 256, draw(true));
     const wall = new THREE.MeshStandardMaterial({
       map, emissiveMap, emissive: new THREE.Color('#ffe9b0'),
-      emissiveIntensity: 0, roughness: 0.85, metalness: style <= 1 ? 0.35 : 0.05,
+      emissiveIntensity: 0, roughness: 0.85, metalness: def.metal ?? 0.05,
     });
     const roof = new THREE.MeshStandardMaterial({ color: '#3a3d42', roughness: 0.95 });
     this.G.daynight?.registerEmissive(wall);
@@ -89,11 +107,31 @@ export class BuildingFactory {
     return set;
   }
 
-  /** Instanced meshes for a list of plain buildings (same style). */
+  /** Instanced meshes for a list of plain buildings (same style).
+   *  Entries may carry a 9th element: tiers [[wScale,dScale,hFrac],…] for
+   *  setback towers — each tier becomes its own stacked instance. */
   makeInstanced(style, entries) {
     const mats = this.materials(style);
-    const isHouse = style === STYLE.HOUSE_A || style === STYLE.HOUSE_B;
-    const mesh = new THREE.InstancedMesh(this.boxGeo, mats.array, entries.length);
+    const isHouse = HOUSE_STYLES.has(style);
+
+    // expand tiers into individual instance transforms
+    const xforms = [];
+    for (const b of entries) {
+      const [x, z, w, d, h, ry] = b;
+      const tiers = b[8];
+      if (tiers && tiers.length) {
+        let y = 0;
+        for (const [ws, ds, hf] of tiers) {
+          const th = h * hf;
+          xforms.push({ x, z, y, w: w * ws, d: d * ds, h: th, ry });
+          y += th;
+        }
+      } else {
+        xforms.push({ x, z, y: 0, w, d, h, ry });
+      }
+    }
+
+    const mesh = new THREE.InstancedMesh(this.boxGeo, mats.array, xforms.length);
     mesh.castShadow = this.G.settings.quality === 'high';
     mesh.receiveShadow = true;
     const m4 = new THREE.Matrix4();
@@ -101,19 +139,23 @@ export class BuildingFactory {
     const meshes = [mesh];
     let roofMesh = null;
     if (isHouse) {
+      const roofColors = {
+        [STYLE.HOUSE_A]: '#7a3b2e', [STYLE.HOUSE_B]: '#54555e',
+        [STYLE.HOUSE_C]: '#6e4a30', [STYLE.HOUSE_D]: '#3e4552',
+      };
       roofMesh = new THREE.InstancedMesh(this.roofGeo,
-        new THREE.MeshStandardMaterial({ color: style === STYLE.HOUSE_A ? '#7a3b2e' : '#54555e', roughness: 0.9 }),
-        entries.length);
+        new THREE.MeshStandardMaterial({ color: roofColors[style] ?? '#54555e', roughness: 0.9 }),
+        xforms.length);
       roofMesh.castShadow = mesh.castShadow;
       meshes.push(roofMesh);
     }
-    entries.forEach((b, i) => {
-      const [x, z, w, d, h, ry] = b;
-      q.setFromEuler(new THREE.Euler(0, ry * Math.PI / 2, 0));
-      m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(w, h, d));
+    xforms.forEach((t, i) => {
+      q.setFromEuler(new THREE.Euler(0, t.ry * Math.PI / 2, 0));
+      m4.compose(new THREE.Vector3(t.x, t.y, t.z), q, new THREE.Vector3(t.w, t.h, t.d));
       mesh.setMatrixAt(i, m4);
       if (roofMesh) {
-        m4.compose(new THREE.Vector3(x, h, z), q, new THREE.Vector3(w * 1.08, Math.min(w, d) * 0.55, d * 1.08));
+        m4.compose(new THREE.Vector3(t.x, t.y + t.h, t.z), q,
+          new THREE.Vector3(t.w * 1.08, Math.min(t.w, t.d) * 0.55, t.d * 1.08));
         roofMesh.setMatrixAt(i, m4);
       }
     });

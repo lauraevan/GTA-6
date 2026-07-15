@@ -63,6 +63,11 @@ if (CFG.smoke) {
   CFG.settings.resolutionScale = 0.5;
   CFG.settings.volMaster = 0;
 }
+if (CFG.urlQuality) CFG.settings.quality = CFG.urlQuality; // explicit beats smoke default
+if (params.get('rs')) CFG.settings.resolutionScale = parseFloat(params.get('rs'));
+CFG.urlSpawn = params.get('px') !== null && params.get('pz') !== null
+  ? { x: parseFloat(params.get('px')), z: parseFloat(params.get('pz')), yaw: parseFloat(params.get('yaw') ?? '0'), noCar: params.has('nocar') }
+  : null;
 
 export function saveSettings() {
   try { localStorage.setItem('gta.settings', JSON.stringify(CFG.settings)); } catch (e) { /* ignore */ }

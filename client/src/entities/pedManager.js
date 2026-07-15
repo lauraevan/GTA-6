@@ -11,6 +11,7 @@ import { CFG } from '../core/config.js';
 const DENSITY = {
   [DISTRICT.DOWNTOWN]: 22, [DISTRICT.COMMERCIAL]: 18, [DISTRICT.RESIDENTIAL]: 12,
   [DISTRICT.INDUSTRIAL]: 6, [DISTRICT.PARK]: 16, [DISTRICT.RURAL]: 2, [DISTRICT.WATER]: 0,
+  [DISTRICT.BEACH]: 11,
 };
 
 export class PedManager {
@@ -93,7 +94,7 @@ export class PedManager {
     if (G.city.isWaterAt(x, z)) return;
 
     const outfit = PED_OUTFITS[(Math.random() * PED_OUTFITS.length) | 0];
-    const ped = new Ped(G, new THREE.Vector3(x, 0.05, z), outfit);
+    const ped = new Ped(G, new THREE.Vector3(x, 0.05, z), outfit, { allowSkinned: true });
     ped.edge = edge;
     ped.toNode = Math.random() < 0.5 ? edge.a : edge.b;
     ped.side = side;

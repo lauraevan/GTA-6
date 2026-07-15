@@ -57,12 +57,32 @@ export class Ped {
     this.isCop = opts.isCop ?? false;
     this.isSwat = opts.isSwat ?? false;
     this.isClerk = opts.isClerk ?? false;
-    const built = buildPedMesh(G, outfit, {
-      cap: (this.isCop || this.isSwat) ? (opts.capColor ?? '#101828') : null,
-      badge: this.isCop,
-    });
-    this.mesh = built.root;
-    this.parts = built.parts;
+
+    // civilians use the Higgsfield skinned+animated model when it's bundled;
+    // cops/clerks need procedural poses (aim, hands-up) so they keep the part rig
+    this.skinned = null;
+    if (opts.allowSkinned && !this.isCop && !this.isSwat && !this.isClerk) {
+      const model = G.assets?.getModel('ped-civilian-anim');
+      if (model && model.userData.skinned && model.userData.animations?.length) {
+        this.mesh = model;
+        this.parts = null;
+        const mixer = new THREE.AnimationMixer(model);
+        const walkClip = model.userData.animations.find((c) => /walk/i.test(c.name))
+          ?? model.userData.animations[0];
+        const walk = mixer.clipAction(walkClip);
+        walk.play();
+        this.skinned = { mixer, walk };
+      }
+    }
+    if (!this.skinned) {
+      const built = buildPedMesh(G, outfit, {
+        cap: (this.isCop || this.isSwat) ? (opts.capColor ?? '#101828') : null,
+        badge: this.isCop,
+      });
+      this.mesh = built.root;
+      this.parts = built.parts;
+    }
+    this.outfit = outfit;
     this.mesh.position.copy(pos);
     G.scene.add(this.mesh);
 
@@ -83,7 +103,7 @@ export class Ped {
   }
 
   attachGun() {
-    if (this.gun) return;
+    if (this.gun || !this.parts) return;
     this.gun = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.16, 0.3),
       new THREE.MeshStandardMaterial({ color: '#1a1c22', roughness: 0.4, metalness: 0.6 }));
@@ -129,7 +149,16 @@ export class Ped {
     if (this.dead) return;
     this.dead = true;
     this.G.audio?.play('scream', { pos: this.position, vol: 0.5 });
-    this.G.ragdolls?.spawn(this.mesh, this.position.clone(), impulse);
+    let ragdollSource = this.mesh;
+    if (this.skinned) {
+      // ragdolls need the part-based rig: swap the skinned mesh for one
+      this.G.scene.remove(this.mesh);
+      ragdollSource = buildPedMesh(this.G, this.outfit, {}).root;
+      ragdollSource.position.copy(this.position);
+      ragdollSource.rotation.y = this.yaw;
+      this.G.scene.add(ragdollSource);
+    }
+    this.G.ragdolls?.spawn(ragdollSource, this.position.clone(), impulse);
     // occasional cash drop
     if (!this.isCop && Math.random() < 0.35) {
       this.G.pickups?.spawnCash(this.position.clone(), 10 + (Math.random() * 50) | 0);
@@ -142,10 +171,18 @@ export class Ped {
     }
   }
 
-  /** simple procedural animation */
+  /** walk-cycle animation: AnimationMixer for skinned peds, procedural otherwise */
   animate(dt) {
     if (this.dead) return;
     this.mesh.rotation.y = this.yaw;
+    if (this.skinned) {
+      const { mixer, walk } = this.skinned;
+      const moving = this.speed > 0.12;
+      walk.timeScale = moving ? Math.max(0.55, this.speed / 1.55) : 0;
+      if (!moving) walk.time = 0.35; // neutral standing frame
+      mixer.update(dt);
+      return;
+    }
     const { armL, armR, legL, legR, torso } = this.parts;
     if (this.handsUp) {
       armL.rotation.x = Math.PI - 0.3 + Math.sin(this.phase * 2) * 0.03;
