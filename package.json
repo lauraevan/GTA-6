@@ -1,0 +1,14 @@
+{
+  "name": "grand-theft-audi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GRAND THEFT AUDI — original open-world crime/driving sandbox (Neustadt Bay)",
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "build": "npm --prefix client run build",
+    "smoke": "npm --prefix client run smoke",
+    "test:server": "cd server && .venv/bin/python -m pytest tests/ -q",
+    "assets": "bash scripts/fetch-assets.sh",
+    "dist:win": "cd desktop && npm run dist:win"
+  }
+}

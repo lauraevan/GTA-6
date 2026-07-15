@@ -1,0 +1,4 @@
+{
+  "comment": "GLB assets generated via Higgsfield AI (image_to_3d). Names map to AssetLibrary keys; `fit` rescales the GLB's bounding box to the gameplay size [w,h,l] in metres; `yaw` rotates so the nose faces +Z. Delete an entry to fall back to the procedural mesh.",
+  "assets": {}
+}

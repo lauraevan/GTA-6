@@ -1,0 +1,96 @@
+/* ===== menus / panels ===== */
+#menu-root { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+#menu-root > * { pointer-events: auto; }
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, rgba(5,7,10,0.82), rgba(5,7,10,0.6));
+}
+.screen.transparent { background: transparent; pointer-events: none; }
+
+.menu-panel {
+  min-width: 340px; max-width: 92vw;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 26px 30px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+}
+.menu-panel h1 {
+  font-family: var(--font-display); font-size: 40px; letter-spacing: .03em;
+  line-height: .95; margin-bottom: 2px;
+}
+.menu-panel h1 span { color: var(--accent); }
+.menu-panel h2 { font-size: 15px; letter-spacing: .3em; color: var(--text-dim); margin-bottom: 20px; }
+.menu-panel h3 { font-size: 13px; letter-spacing: .2em; color: var(--accent); margin: 16px 0 8px; }
+
+.menu-btn {
+  display: block; width: 100%;
+  background: transparent; border: none; text-align: left;
+  color: var(--text); font-size: 19px; font-family: var(--font-body);
+  padding: 10px 12px; margin: 2px 0; border-radius: 6px;
+  cursor: pointer; letter-spacing: 0.04em;
+  transition: background .12s, color .12s, padding-left .12s;
+}
+.menu-btn:hover, .menu-btn.sel {
+  background: rgba(232,180,55,0.14); color: var(--accent); padding-left: 20px;
+}
+.menu-btn:disabled { opacity: 0.35; cursor: default; }
+.menu-btn .price { float: right; color: #7fd66a; }
+.menu-btn .note { float: right; color: var(--text-dim); font-size: 13px; margin-top: 3px; }
+
+.menu-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 15px; }
+.menu-row label { color: var(--text); }
+.menu-row input[type="range"] { width: 160px; accent-color: var(--accent); }
+.menu-row select {
+  background: #1a1f2b; color: var(--text); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px; padding: 4px 8px; font-size: 14px;
+}
+.menu-row .toggle { cursor: pointer; color: var(--accent2); }
+
+.menu-footer { margin-top: 18px; font-size: 12px; color: var(--text-dim); text-align: center; letter-spacing: .08em; }
+
+.kv-table { width: 100%; font-size: 14px; border-collapse: collapse; }
+.kv-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.kv-table td.k { color: var(--text-dim); }
+.kv-table td.v { text-align: right; }
+
+/* stat bars in garage */
+.stat-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 3px 0; }
+.stat-row .lbl { width: 74px; color: var(--text-dim); letter-spacing: .08em; }
+.stat-row .bar { flex: 1; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.stat-row .bar div { height: 100%; background: var(--accent); }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
+.swatch {
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.25);
+}
+.swatch.sel { border-color: var(--accent); box-shadow: 0 0 10px rgba(232,180,55,0.6); }
+
+.pause-title {
+  position: absolute; top: 7vh; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-display); font-size: 30px; letter-spacing: .2em; color: rgba(255,255,255,0.85);
+}
+
+/* controls help */
+.controls-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; font-size: 14px; max-height: 56vh; overflow-y: auto; padding-right: 8px; }
+.controls-grid .key { font-family: var(--font-display); color: var(--accent); text-align: right; }
+
+/* fade overlay for wasted/busted/loading transitions */
+#fade {
+  position: fixed; inset: 0; z-index: 45; background: #000;
+  opacity: 0; pointer-events: none; transition: opacity 0.7s ease;
+}
+#fade.on { opacity: 1; }
+
+/* garage columns */
+.garage-layout { display: flex; gap: 22px; max-height: 62vh; }
+.garage-layout .col { overflow-y: auto; min-width: 240px; }
+.garage-layout .col.wide { min-width: 300px; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(232,180,55,0.35); border-radius: 4px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }

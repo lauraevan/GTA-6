@@ -1,0 +1,163 @@
+/* ===== in-game HUD ===== */
+#hud-root { position: fixed; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; }
+
+/* minimap cluster (bottom-left) */
+#minimap-wrap {
+  position: absolute; left: 22px; bottom: 22px;
+  width: 224px; height: 224px;
+}
+#minimap {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.65), 0 6px 24px rgba(0,0,0,0.5);
+}
+#zone-name {
+  position: absolute; left: 6px; bottom: -4px; transform: translateY(100%);
+  font-size: 12px; letter-spacing: 0.18em; color: var(--text-dim);
+  text-shadow: 0 1px 3px #000;
+}
+
+/* top-right: cash + wanted */
+#status-tr {
+  position: absolute; top: 18px; right: 24px; text-align: right;
+}
+#cash {
+  font-family: var(--font-display); font-size: 30px; color: #7fd66a;
+  text-shadow: 0 2px 0 #05230a, 0 0 18px rgba(127,214,106,0.25);
+}
+#cash-delta { font-size: 15px; height: 18px; color: #7fd66a; opacity: 0; transition: opacity .3s; }
+#cash-delta.neg { color: var(--danger); }
+#cash-delta.show { opacity: 1; }
+
+#wanted { margin-top: 4px; font-size: 26px; letter-spacing: 4px; }
+#wanted .star { color: rgba(255,255,255,0.18); text-shadow: none; transition: color .2s; }
+#wanted .star.on { color: var(--accent); text-shadow: 0 0 14px rgba(232,180,55,0.8); }
+#wanted.flash .star.on { animation: starflash 0.5s infinite alternate; }
+@keyframes starflash { from { color: var(--accent); } to { color: #fff; } }
+
+/* weapon (bottom-right) */
+#weapon-box {
+  position: absolute; right: 24px; bottom: 22px; text-align: right;
+}
+#weapon-name { font-size: 13px; letter-spacing: 0.2em; color: var(--text-dim); text-shadow: 0 1px 3px #000; }
+#weapon-ammo { font-family: var(--font-display); font-size: 26px; color: var(--text); text-shadow: 0 2px 4px #000; }
+#weapon-ammo .reserve { font-size: 16px; color: var(--text-dim); }
+#weapon-ammo.reloading { color: var(--accent); }
+
+/* speedometer */
+#speedo {
+  position: absolute; right: 24px; bottom: 84px; text-align: right;
+  font-family: var(--font-display);
+}
+#speedo .kmh { font-size: 38px; text-shadow: 0 2px 6px #000; }
+#speedo .unit { font-size: 12px; color: var(--text-dim); letter-spacing: .3em; }
+#speedo .nitro-bar { width: 120px; height: 4px; margin: 4px 0 0 auto; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+#speedo .nitro-bar div { height: 100%; background: var(--accent2); width: 0%; }
+#vehicle-name {
+  position: absolute; right: 24px; bottom: 148px;
+  font-size: 12px; letter-spacing: .25em; color: var(--text-dim); text-shadow: 0 1px 3px #000;
+}
+
+/* objective + subtitles + toasts */
+#objective {
+  position: absolute; left: 50%; top: 8%; transform: translateX(-50%);
+  max-width: 640px; text-align: center;
+  font-size: 17px; letter-spacing: 0.03em;
+  color: #ffe9b0; text-shadow: 0 2px 6px #000;
+}
+#objective b { color: var(--accent); }
+#subtitle {
+  position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%);
+  max-width: 760px; text-align: center;
+  font-size: 18px; color: #fff; text-shadow: 0 2px 5px #000;
+  background: rgba(0,0,0,0.35); padding: 8px 18px; border-radius: 6px;
+}
+#subtitle .speaker { color: var(--accent2); font-weight: 700; }
+#toasts { position: absolute; left: 22px; top: 18px; width: 340px; }
+.toast {
+  background: var(--panel); border-left: 3px solid var(--accent);
+  color: var(--text); padding: 9px 13px; margin-bottom: 8px;
+  font-size: 14px; border-radius: 4px; opacity: 0;
+  transform: translateX(-12px); transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+}
+.toast.show { opacity: 1; transform: none; }
+.toast .t-title { color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: .12em; }
+
+/* interaction prompt */
+#prompt {
+  position: absolute; left: 50%; bottom: 26%; transform: translateX(-50%);
+  font-size: 15px; color: #fff; text-shadow: 0 2px 4px #000;
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2);
+  padding: 7px 14px; border-radius: 5px; letter-spacing: 0.05em;
+}
+#prompt b {
+  display: inline-block; background: var(--text); color: #111;
+  border-radius: 4px; padding: 0 7px; margin-right: 7px; font-family: var(--font-display);
+}
+
+/* crosshair + hitmarker */
+#crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#crosshair .dot { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; background: #fff; border-radius: 50%; box-shadow: 0 0 4px #000; }
+#crosshair .line { position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+#hitmarker {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(45deg);
+  font-size: 22px; color: #fff; opacity: 0; font-weight: 900;
+}
+#hitmarker.show { animation: hit 0.22s ease; }
+@keyframes hit { 0% { opacity: 1; transform: translate(-50%,-50%) rotate(45deg) scale(1.4);} 100% { opacity: 0; } }
+
+/* damage vignette + flashes */
+#vignette-dmg {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(190, 8, 8, 0.55) 100%);
+  transition: opacity 0.25s;
+}
+#flash-white { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+
+/* health/armor around minimap handled in canvas; textual backup */
+#vitals { position: absolute; left: 254px; bottom: 30px; width: 150px; }
+#vitals .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-bottom: 6px; overflow: hidden; }
+#vitals .bar div { height: 100%; border-radius: 3px; transition: width .2s; }
+#hp-fill { background: #64d05e; }
+#ap-fill { background: var(--accent2); }
+#stamina-row { display: none; }
+
+/* race panel */
+#race-panel {
+  position: absolute; left: 50%; top: 16%; transform: translateX(-50%);
+  text-align: center; font-family: var(--font-display);
+}
+#race-panel .pos { font-size: 44px; text-shadow: 0 3px 0 #000; }
+#race-panel .info { font-size: 15px; color: var(--text-dim); letter-spacing: .1em; }
+#race-timer { font-size: 20px; color: var(--accent); }
+
+/* big center banners */
+#banner {
+  position: absolute; left: 0; right: 0; top: 38%;
+  text-align: center; pointer-events: none;
+  font-family: var(--font-display);
+  font-size: clamp(42px, 8vw, 92px);
+  letter-spacing: 0.06em; color: var(--accent);
+  text-shadow: 0 6px 0 rgba(0,0,0,0.7), 0 0 60px rgba(232,180,55,0.3);
+  opacity: 0; transform: scale(1.15);
+  transition: opacity .45s ease, transform .45s ease;
+}
+#banner.show { opacity: 1; transform: scale(1); }
+#banner.danger { color: var(--danger); text-shadow: 0 6px 0 rgba(0,0,0,0.7), 0 0 60px rgba(232,71,71,0.35); }
+#banner .sub { display: block; font-size: 20px; letter-spacing: .35em; color: var(--text); margin-top: 6px; font-family: var(--font-body); }
+
+/* radio toast */
+#radio-toast {
+  position: absolute; left: 50%; top: 20px; transform: translateX(-50%);
+  background: var(--panel); padding: 8px 20px; border-radius: 20px;
+  border: 1px solid var(--panel-border); font-size: 14px; letter-spacing: .1em;
+  opacity: 0; transition: opacity .3s;
+}
+#radio-toast.show { opacity: 1; }
+#radio-toast b { color: var(--accent); }
+
+#fps { position: absolute; right: 8px; top: 6px; font-size: 11px; color: #7f8; opacity: 0.7; }
+
+/* speed lines overlay */
+#speedlines { position: absolute; inset: 0; pointer-events: none; opacity: 0; }

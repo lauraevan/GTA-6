@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+*.log
+.vite/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+server/data/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Build / test artifacts
+client/test-artifacts/
+desktop/out/
+desktop/dist/
+*.local
+client/test/smoke-shot.png

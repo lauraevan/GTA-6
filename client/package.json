@@ -1,0 +1,20 @@
+{
+  "name": "grand-theft-audi-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "smoke": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "cannon-es": "^0.20.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.48.0",
+    "vite": "^5.4.8"
+  }
+}
