@@ -24,20 +24,55 @@ function box(w, h, d, mat) {
  * Build a vehicle mesh. Returns {root, parts:{...}, wheels:[4], mats:{body}}
  * Local convention: +Z forward, Y up, origin at chassis centre.
  */
+let blobTexture = null;
+function getBlobTexture() {
+  if (blobTexture) return blobTexture;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  g.addColorStop(0, 'rgba(0,0,0,0.85)');
+  g.addColorStop(0.7, 'rgba(0,0,0,0.4)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  blobTexture = new THREE.CanvasTexture(c);
+  return blobTexture;
+}
+
 export function buildVehicleMesh(G, modelId, def, paint, wheelStyle = 0) {
   const glb = G.assets?.getModel(`vehicle-${modelId}`);
   const [W, H, L] = def.size;
 
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: paint, roughness: 0.32, metalness: 0.75 });
+  // clearcoat "car paint" so the environment map reads like real paint
+  const bodyMat = new THREE.MeshPhysicalMaterial({
+    color: paint, roughness: 0.34, metalness: 0.65,
+    clearcoat: 0.7, clearcoatRoughness: 0.12, envMapIntensity: 1.25 });
   const root = new THREE.Group();
   const parts = {};
   const wheels = [];
+  const stance = H / 2 + def.wheelR * 0.55;
 
   if (glb) {
+    // GLB bodies bake their own wheels: align the model's bottom to the parked
+    // stance so tyres touch the road when the chassis sits at stance height.
+    const bb = new THREE.Box3().setFromObject(glb);
+    glb.position.y -= bb.min.y + stance;
+    glb.traverse((o) => {
+      if (o.isMesh && o.material) o.material.envMapIntensity = 1.3;
+    });
     root.add(glb);
-    // still build procedural wheels for spin animation if GLB lacks them
   }
+
+  // soft blob shadow grounds the car even without expensive shadow maps
+  const blob = new THREE.Mesh(
+    new THREE.PlaneGeometry(W * 1.35, L * 1.12),
+    new THREE.MeshBasicMaterial({
+      map: getBlobTexture(), transparent: true, opacity: 0.5, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = -stance + 0.06;
+  blob.renderOrder = 1;
+  root.add(blob);
 
   const mkWheel = () => {
     const g = new THREE.Group();
@@ -50,6 +85,7 @@ export function buildVehicleMesh(G, modelId, def, paint, wheelStyle = 0) {
       rimMats[wheelStyle % rimMats.length]);
     rim.rotation.z = Math.PI / 2;
     g.add(tire, rim);
+    g.visible = !glb; // hidden when the GLB body has baked wheels
     root.add(g);
     wheels.push(g);
     return g;

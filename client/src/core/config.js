@@ -40,6 +40,8 @@ export const CFG = {
   smoke: params.has('smoke'),
   autostart: params.has('autostart') || params.has('smoke'),
   urlQuality: params.get('quality'),
+  urlHour: params.get('hour'),
+  urlWeather: params.get('weather'),
   settings: loadSettings(),
 
   // gameplay tuning

@@ -24,3 +24,4 @@ desktop/out/
 desktop/dist/
 *.local
 client/test/smoke-shot.png
+client/test/*.png

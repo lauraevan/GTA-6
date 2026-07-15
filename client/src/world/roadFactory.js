@@ -8,12 +8,12 @@ import { DISTRICT } from './cityData.js';
 
 const DISTRICT_GROUND = {
   [DISTRICT.WATER]: '#1d4e63',
-  [DISTRICT.DOWNTOWN]: '#63615c',
-  [DISTRICT.COMMERCIAL]: '#6b675e',
-  [DISTRICT.RESIDENTIAL]: '#5d6b4e',
-  [DISTRICT.INDUSTRIAL]: '#5e5c55',
-  [DISTRICT.RURAL]: '#5a7046',
-  [DISTRICT.PARK]: '#4e7a44',
+  [DISTRICT.DOWNTOWN]: '#5b5954',
+  [DISTRICT.COMMERCIAL]: '#615d55',
+  [DISTRICT.RESIDENTIAL]: '#4f583f',
+  [DISTRICT.INDUSTRIAL]: '#565349',
+  [DISTRICT.RURAL]: '#48583a',
+  [DISTRICT.PARK]: '#3f5c38',
 };
 
 export class RoadFactory {
@@ -29,15 +29,22 @@ export class RoadFactory {
     const scale = size / city.meta.worldSize;
     return canvasTexture(size, size, (ctx) => {
       const toPx = (v) => (v + city.half) * scale;
-      // districts
+      // districts with per-block tonal variation + inner lot shading
       for (let bz = 0; bz < city.meta.blocks; bz++) {
         for (let bx = 0; bx < city.meta.blocks; bx++) {
+          const px = toPx(-city.half + bx * city.blockSize);
+          const pz = toPx(-city.half + bz * city.blockSize);
+          const bs = city.blockSize * scale;
           ctx.fillStyle = DISTRICT_GROUND[city.districts[bz][bx]] || '#5a7046';
-          ctx.fillRect(toPx(-city.half + bx * city.blockSize), toPx(-city.half + bz * city.blockSize),
-            city.blockSize * scale + 1, city.blockSize * scale + 1);
+          ctx.fillRect(px, pz, bs + 1, bs + 1);
+          const jitter = ((bx * 31 + bz * 17) % 7) / 7;
+          ctx.fillStyle = `rgba(${jitter > 0.5 ? '255,255,240' : '0,0,20'},${0.03 + jitter * 0.05})`;
+          ctx.fillRect(px, pz, bs + 1, bs + 1);
+          ctx.fillStyle = 'rgba(0,0,0,0.08)';
+          ctx.fillRect(px + bs * 0.14, pz + bs * 0.14, bs * 0.72, bs * 0.72);
         }
       }
-      noise2d(ctx, size, size, 0.04, 4000);
+      noise2d(ctx, size, size, 0.05, 6000);
       // roads
       for (const r of this.G.city.roads) {
         const w = city.roadHalf(r.t) * 2 * scale;
@@ -90,9 +97,15 @@ export class RoadFactory {
     const s = city.chunkSize;
     const x0 = -city.half + cx * s, x1 = x0 + s;
     const z0 = -city.half + cz * s, z1 = z0 + s;
-    const meshes = [], colliders = [];
+    const meshes = [], colliders = [], wetMats = [];
     const curbMat = this._curbMat || (this._curbMat =
       new THREE.MeshStandardMaterial({ color: '#8f8f8a', roughness: 0.95 }));
+    const mkAsphalt = (tex) => {
+      const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, envMapIntensity: 0.35 });
+      m.userData.baseRoughness = 0.92;
+      wetMats.push(m);
+      return m;
+    };
 
     for (const r of city.roads) {
       const half = city.roadHalf(r.t);
@@ -107,7 +120,7 @@ export class RoadFactory {
         const tex = this.laneTexture(r.t).clone();
         tex.needsUpdate = true;
         tex.repeat.set(1, len / 24);
-        const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 }));
+        const m = new THREE.Mesh(geo, mkAsphalt(tex));
         m.rotation.x = -Math.PI / 2;
         m.position.set(c, 0.03, mid);
         m.receiveShadow = true;
@@ -133,7 +146,7 @@ export class RoadFactory {
         const tex = this.laneTexture(r.t).clone();
         tex.needsUpdate = true;
         tex.repeat.set(1, len / 24);
-        const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 }));
+        const m = new THREE.Mesh(geo, mkAsphalt(tex));
         m.rotation.x = -Math.PI / 2;
         m.rotation.z = Math.PI / 2;
         m.position.set(mid, 0.03, c);
@@ -154,8 +167,13 @@ export class RoadFactory {
     }
 
     // intersection patches so crossing markings don't overlap
-    const patchMat = this._patchMat || (this._patchMat =
-      new THREE.MeshStandardMaterial({ color: '#3b3c42', roughness: 0.92 }));
+    if (!this._patchMat) {
+      this._patchMat = new THREE.MeshStandardMaterial({
+        color: '#3b3c42', roughness: 0.92, envMapIntensity: 0.35 });
+      this._patchMat.userData.baseRoughness = 0.92;
+      this.G.wetMats?.add(this._patchMat); // shared: registered once, never removed
+    }
+    const patchMat = this._patchMat;
     const nav = this.G.nav;
     for (const n of nav.nodes) {
       if (n.x < x0 - 10 || n.x > x1 + 10 || n.z < z0 - 10 || n.z > z1 + 10) continue;
@@ -169,6 +187,6 @@ export class RoadFactory {
       meshes.push(patch);
     }
 
-    return { meshes, colliders };
+    return { meshes, colliders, wetMats };
   }
 }

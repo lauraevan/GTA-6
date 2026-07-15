@@ -75,6 +75,16 @@ export class Weather {
       G.scene.fog.density = this.cur.fog * nightMul;
     }
 
+    // wet asphalt: darker, glossier, catches the environment reflections
+    if (G.wetMats) {
+      const wet = this.cur.rain;
+      for (const m of G.wetMats) {
+        const base = m.userData.baseRoughness ?? 0.92;
+        m.roughness = lerp(base, 0.3, wet);
+        m.envMapIntensity = lerp(0.35, 1.7, wet);
+      }
+    }
+
     // rain particles
     const show = this.cur.rain > 0.05;
     this.rainMat.opacity = this.cur.rain * 0.65;

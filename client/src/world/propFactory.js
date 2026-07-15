@@ -2,7 +2,8 @@
 // billboards, cranes and stunt ramps.
 
 import * as THREE from 'three';
-import { PROP } from './cityData.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { PROP, DISTRICT } from './cityData.js';
 import { canvasTexture } from '../core/assets.js';
 
 const ADS = [
@@ -32,6 +33,17 @@ export class PropFactory {
     };
     this.G.daynight?.registerLamp(this.mats.lampHead);
 
+    // fake-volumetric light cone under each street lamp (night/rain only)
+    this.mats.lightCone = new THREE.MeshBasicMaterial({
+      color: '#ffe0a0', transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    this.G.daynight?.registerCone(this.mats.lightCone);
+
+    this.mats.palmTrunk = new THREE.MeshStandardMaterial({ color: '#8a6a48', roughness: 0.95 });
+    this.mats.palmFrond = new THREE.MeshStandardMaterial({
+      color: '#3f8a4a', roughness: 0.9, side: THREE.DoubleSide });
+
     this.geo = {
       pole: new THREE.CylinderGeometry(0.07, 0.1, 5.4, 6).translate(0, 2.7, 0),
       lampArm: new THREE.BoxGeometry(0.08, 0.08, 1.4).translate(0, 5.25, 0.6),
@@ -45,7 +57,26 @@ export class PropFactory {
       container: new THREE.BoxGeometry(2.4, 2.5, 6).translate(0, 1.25, 0),
       dumpster: new THREE.BoxGeometry(1.7, 1.2, 1.0).translate(0, 0.6, 0),
       meter: new THREE.CylinderGeometry(0.04, 0.04, 1.1, 5).translate(0, 0.55, 0),
+      lightCone: new THREE.CylinderGeometry(0.12, 1.7, 4.9, 10, 1, true)
+        .translate(0, 5.2 - 2.45, 1.15),
+      palm: this._makePalmGeo(),
     };
+  }
+
+  _makePalmGeo() {
+    const trunk = new THREE.CylinderGeometry(0.1, 0.18, 5.2, 6).translate(0, 2.6, 0);
+    const fronds = [];
+    for (let i = 0; i < 7; i++) {
+      const f = new THREE.PlaneGeometry(0.55, 2.6, 1, 3);
+      f.translate(0, 1.15, 0);
+      f.rotateX(-1.05 - (i % 2) * 0.25);
+      f.rotateY((i / 7) * Math.PI * 2);
+      f.translate(0, 5.1, 0);
+      fronds.push(f);
+    }
+    const frondGeo = mergeGeometries(fronds);
+    const merged = mergeGeometries([trunk, frondGeo], true); // 2 groups: trunk, fronds
+    return merged;
   }
 
   /**
@@ -85,15 +116,28 @@ export class PropFactory {
             (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.24, sy: 5.2, sz: 0.24, ry: 0 }));
           inst(this.geo.lampArm, this.mats.pole, list);
           inst(this.geo.lampHead, this.mats.lampHead, list);
+          inst(this.geo.lightCone, this.mats.lightCone, list);
           break;
         case PROP.TREE: {
-          inst(this.geo.trunk, this.mats.trunk, list,
-            (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.4, sy: 2.4, sz: 0.4, ry: 0 }));
-          // vary canopy material by position hash
-          const a = list.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 === 0);
-          const b = list.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 !== 0);
-          if (a.length) inst(this.geo.canopy, this.mats.canopy, a);
-          if (b.length) inst(this.geo.canopy, this.mats.canopy2, b);
+          // palms toward the water/downtown for the marina look
+          const palms = [], regular = [];
+          for (const p of list) {
+            const d = this.G.city.districtAt(p[0], p[1]);
+            if (d === DISTRICT.DOWNTOWN || d === DISTRICT.INDUSTRIAL || p[0] < -600) palms.push(p);
+            else regular.push(p);
+          }
+          if (palms.length) {
+            inst(this.geo.palm, [this.mats.palmTrunk, this.mats.palmFrond], palms,
+              (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.4, sy: 5, sz: 0.4, ry: 0 }));
+          }
+          if (regular.length) {
+            inst(this.geo.trunk, this.mats.trunk, regular,
+              (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.4, sy: 2.4, sz: 0.4, ry: 0 }));
+            const a = regular.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 === 0);
+            const b = regular.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 !== 0);
+            if (a.length) inst(this.geo.canopy, this.mats.canopy, a);
+            if (b.length) inst(this.geo.canopy, this.mats.canopy2, b);
+          }
           break;
         }
         case PROP.HYDRANT: inst(this.geo.hydrant, this.mats.hydrant, list); break;

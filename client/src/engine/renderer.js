@@ -5,8 +5,10 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export class RendererSys {
   constructor(G, canvas) {
@@ -35,13 +37,24 @@ export class RendererSys {
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(G.scene, G.camera));
     this.bloom = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.65, 0.85);
+      new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.55, 0.78);
     this.composer.addPass(this.bloom);
     this.vignette = new ShaderPass(VignetteShader);
     this.vignette.uniforms.offset.value = 0.92;
     this.vignette.uniforms.darkness.value = 1.15;
     this.composer.addPass(this.vignette);
     this.composer.addPass(new OutputPass());
+    this.smaa = new SMAAPass(window.innerWidth, window.innerHeight);
+    this.composer.addPass(this.smaa);
+  }
+
+  /** neutral PMREM environment so paint/glass/windows pick up reflections */
+  buildEnvironment() {
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.06).texture;
+    this.G.scene.environment = env;
+    this.G.scene.environmentIntensity = 0.55;
+    pmrem.dispose();
   }
 
   resize() {
@@ -61,8 +74,10 @@ export class RendererSys {
     const { G } = this;
     if (this.usePost) {
       if (!this.composer) this.buildComposer();
-      // stronger bloom at night for neon/headlight glow
-      this.bloom.strength = 0.28 + (1 - (G.daynight?.sunFactor ?? 1)) * 0.35;
+      // stronger, lower-threshold bloom at night for neon/headlight glow
+      const night = 1 - (G.daynight?.sunFactor ?? 1);
+      this.bloom.strength = 0.3 + night * 0.4;
+      this.bloom.threshold = 0.82 - night * 0.28;
       this.composer.render();
     } else {
       this.renderer.render(G.scene, G.camera);

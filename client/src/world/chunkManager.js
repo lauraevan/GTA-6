@@ -166,6 +166,8 @@ export class ChunkManager {
     const roadRes = this.roads.buildChunkRoads(cx, cz);
     for (const m of roadRes.meshes) { group.add(m); disposables.push(m.geometry); }
     for (const c of roadRes.colliders) addCollider(c, { kind: 'curb' });
+    const wetMats = roadRes.wetMats ?? [];
+    for (const m of wetMats) G.wetMats?.add(m);
 
     if (data) {
       // --- buildings
@@ -206,7 +208,7 @@ export class ChunkManager {
     }
 
     G.scene.add(group);
-    this.loaded.set(k, { group, bodies, disposables, interiors, lights });
+    this.loaded.set(k, { group, bodies, disposables, interiors, lights, wetMats });
 
     // parked cars
     G.vehicles?.onChunkLoad(cx, cz, data);
@@ -218,6 +220,7 @@ export class ChunkManager {
     for (const b of chunk.bodies) G.physics.removeBody(b);
     for (const d of chunk.disposables) d.dispose?.();
     for (const h of chunk.interiors) G.zones?.unregister(h);
+    for (const m of chunk.wetMats ?? []) G.wetMats?.delete(m);
     for (const tl of chunk.lights) {
       const i = this.trafficLights.indexOf(tl);
       if (i >= 0) this.trafficLights.splice(i, 1);

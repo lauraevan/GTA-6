@@ -64,10 +64,12 @@ class Game {
 
     progress(0.15, 'lighting the streets…');
     this.scene = new THREE.Scene();
+    this.wetMats = new Set();
     this.input = new Input(canvas);
     this.cameraRig = new CameraRig(this);
     this.camera = this.cameraRig.camera;
     this.renderer = new RendererSys(this, canvas);
+    this.renderer.buildEnvironment();
     this.daynight = new DayNight(this);
     this.weather = new Weather(this);
     this.particles = new Particles(this);
@@ -206,6 +208,10 @@ class Game {
     } else {
       this.daynight.setHour(10.5);
     }
+    if (CFG.urlHour !== null && CFG.urlHour !== undefined && CFG.urlHour !== '') {
+      this.daynight.setHour(parseFloat(CFG.urlHour));
+    }
+    if (CFG.urlWeather) this.weather.force(CFG.urlWeather);
     this.setState('playing');
     this.cameraRig.setMode('foot');
     this.cameraRig.yaw = Math.PI * 0.75;
@@ -274,7 +280,7 @@ class Game {
         const n = G.nav.nearestNode(G.player.position.x, G.player.position.z);
         G.player.position.set(n.x + 2.5, 0, n.z);
         G.player.body.position.set(n.x + 2.5, 1, n.z);
-        G.vehicles.spawn('kurier', new THREE.Vector3(n.x, 0, n.z), 0, { mode: 'parked' });
+        G.vehicles.spawn('falke', new THREE.Vector3(n.x, 0, n.z), 0, { mode: 'parked' });
         G.player.tryEnterVehicle();
       } catch (e) { G._errors.push('smoke-enter: ' + e); }
     }, 2500);

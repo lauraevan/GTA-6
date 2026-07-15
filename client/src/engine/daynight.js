@@ -5,17 +5,18 @@
 import * as THREE from 'three';
 import { clamp, lerp } from '../core/mathx.js';
 
+// Miami-dusk grading: hot pink/orange sunsets, deep indigo-violet nights.
 const SKY_STOPS = [
   // hour, sky, fog, sunColor, sunIntensity, hemi
-  [0,  0x0a1226, 0x0a1020, 0x223a66, 0.05, 0.22],
-  [5,  0x14203c, 0x141c30, 0x35558c, 0.08, 0.26],
-  [6.5, 0xd8814f, 0xc07850, 0xffb066, 0.55, 0.5],
+  [0,  0x131233, 0x0f0e28, 0x2b3a7a, 0.05, 0.24],
+  [5,  0x1c1e48, 0x171838, 0x3f558c, 0.08, 0.28],
+  [6.5, 0xe0766a, 0xd08a70, 0xffb066, 0.55, 0.52],
   [8,  0x7fb5e6, 0xa8c4de, 0xfff0d0, 1.05, 0.85],
-  [13, 0x66aef0, 0xa5c8e8, 0xffffff, 1.25, 1.0],
-  [17, 0x6fa8e0, 0xa8c0dc, 0xffe8c0, 1.0, 0.9],
-  [19.2, 0xe08a4a, 0xcc8055, 0xff9a4d, 0.5, 0.5],
-  [20.5, 0x1a2440, 0x1a2038, 0x486aa8, 0.1, 0.28],
-  [24, 0x0a1226, 0x0a1020, 0x223a66, 0.05, 0.22],
+  [13, 0x64b2f2, 0xa5c8e8, 0xffffff, 1.25, 1.0],
+  [17, 0x6fa8e0, 0xaabede, 0xffe8c0, 1.0, 0.9],
+  [19.2, 0xd94f7e, 0xc25a80, 0xff7a4d, 0.5, 0.52],
+  [20.5, 0x2a1f4d, 0x241c42, 0x5866b8, 0.1, 0.3],
+  [24, 0x131233, 0x0f0e28, 0x2b3a7a, 0.05, 0.24],
 ];
 
 export class DayNight {
@@ -63,6 +64,7 @@ export class DayNight {
     // registries filled by world factories
     this.emissiveMats = [];   // window materials: intensity 1 at night
     this.lampMats = [];       // street lamp heads
+    this.coneMats = [];       // fake-volumetric light cones (opacity at night)
     this.sunFactor = 1;
     this._skyColor = new THREE.Color();
     this._fogColor = new THREE.Color();
@@ -71,6 +73,7 @@ export class DayNight {
 
   registerEmissive(mat) { this.emissiveMats.push(mat); }
   registerLamp(mat) { this.lampMats.push(mat); }
+  registerCone(mat) { this.coneMats.push(mat); }
 
   get isNight() { return this.hour < 6.2 || this.hour > 19.6; }
 
@@ -119,11 +122,14 @@ export class DayNight {
     this.starMat.opacity = (1 - this.sunFactor) * 0.9;
     this.stars.position.copy(anchor).setY(0);
 
-    // window + lamp emissives
+    // window + lamp emissives, light cones, environment reflections
     const night = 1 - this.sunFactor;
-    const wIntensity = night * 1.35;
+    const wIntensity = night * 1.6;
     for (const m of this.emissiveMats) m.emissiveIntensity = wIntensity;
-    const lampI = night * 2.2;
+    const lampI = night * 3.0;
     for (const m of this.lampMats) m.emissiveIntensity = lampI;
+    const coneO = night * 0.09 * (1 + (G.weather?.rainAmount ?? 0) * 0.8);
+    for (const m of this.coneMats) m.opacity = coneO;
+    G.scene.environmentIntensity = 0.18 + this.sunFactor * 0.45;
   }
 }

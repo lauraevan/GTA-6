@@ -10,6 +10,12 @@ trademarks, vehicle designs, logos or music.
 
 ![stack](https://img.shields.io/badge/stack-Three.js%20%C2%B7%20cannon--es%20%C2%B7%20Vite%20%C2%B7%20FastAPI%20%C2%B7%20Electron-e8b437)
 
+| ![day](docs/screenshots/shot-day.png) | ![dusk](docs/screenshots/shot-dusk.png) | ![night rain](docs/screenshots/shot-night-rain.png) |
+| :--: | :--: | :--: |
+| midday, Gartenstadt | Miami dusk | rainy night, wet asphalt |
+
+*In-engine captures (headless). The silver car is the Higgsfield-generated Adler Falke S GLB.*
+
 ## What's in the box
 
 | Layer | Tech | What it does |
