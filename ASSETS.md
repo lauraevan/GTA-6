@@ -65,6 +65,34 @@ Wishlist for the next batch: `vehicle-stadt` (compact hatch), `vehicle-steinbock
 `weapon-rook9` (compact pistol), `weapon-lancer` (rifle), `prop-container`,
 `prop-crane`, cop/SWAT/clerk character variants.
 
+## ⏳ Pending: animated walk cycle (blocked on credits)
+
+The runtime already ships the full skinned-NPC path (SkeletonUtils cloning,
+AnimationMixer walk with speed-matched timeScale, ragdoll swap on death) —
+it activates automatically when `ped-civilian-anim` appears in the manifest.
+Producing that GLB is **one 8-credit call** on the already-generated rig:
+
+```
+generate_3d(model="3d_rigging", enable_animation=true,
+            animation_action_id=30,   # Casual_Walk (see animation_actions)
+            model_url="544261ba-08fb-4ece-8a3b-6074696057eb")
+```
+
+then add the file + manifest entry:
+
+```json
+"ped-civilian-anim": { "file": "ped-civilian-anim.glb", "fit": [0.5, 1.75, 0.5],
+                       "fitAxis": "y", "ground": true }
+```
+
+> As of the last session the Higgsfield workspace reported **0 usable
+> credits** (`Out of credits in the selected workspace`) even though the
+> account balance endpoint showed 105 — check the workspace/plan on
+> higgsfield.ai and re-run the call above once credits are available.
+> Wishlist order when topped up: animated ped (8 cr) → idle clip (8 cr) →
+> `vehicle-stadt`, `vehicle-steinbock`, `vehicle-vagon` (≈32 cr each,
+> image + textured `image_to_3d`).
+
 ## Rigged pedestrian — integration status
 
 `ped-civilian-rigged.glb` ships with a humanoid skeleton (Meshy auto-rig,

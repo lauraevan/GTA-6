@@ -14,7 +14,15 @@ trademarks, vehicle designs, logos or music.
 | :--: | :--: | :--: |
 | midday, Gartenstadt | Miami dusk | rainy night, wet asphalt |
 
-*In-engine captures (headless). The silver car is the Higgsfield-generated Adler Falke S GLB.*
+| ![bay](docs/screenshots/shot-bay.png) | ![downtown](docs/screenshots/shot-downtown.png) |
+| :--: | :--: |
+| the Strandpromenade over Neustadt Bay | Innenstadt — setback towers & avenues |
+
+*In-engine captures (headless). The hero cars are Higgsfield-generated GLBs.*
+
+**Also in this repo:** `unreal/` — a UE **5.7 C++ project starter** (Lumen/Nanite/TSR
+configured, city-JSON importer, ChaosVehicles pawn, wanted subsystem) for the
+native AAA track. See [unreal/README.md](unreal/README.md).
 
 ## What's in the box
 
