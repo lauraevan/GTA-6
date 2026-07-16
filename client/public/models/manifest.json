@@ -1,9 +1,91 @@
 {
-  "comment": "GLB assets generated via Higgsfield AI (image_to_3d). Names map to AssetLibrary keys; `fit` rescales the GLB's bounding box to the gameplay size [w,h,l] in metres; `yaw` rotates the nose to face +Z. Delete an entry to fall back to the procedural mesh. ped-civilian-rigged.glb is bundled (auto-rigged skeleton) for the skinned-character upgrade — see ASSETS.md.",
+  "comment": "GLB assets generated via Higgsfield AI (image_to_3d / 3d_rigging). Vehicles: `fit` [w,h,l] m + `yaw` so the nose faces +Z. Buildings: loaded raw \u2014 GLBBuildingLibrary normalizes and instances them per lot (yaw = front face to +Z). Peds: fitAxis 'y' scales to height, ground origin; the -anim/-idle GLBs carry the walk/idle clips for the AnimationMixer path.",
   "assets": {
-    "vehicle-falke":   { "file": "vehicle-falke.glb",   "fit": [2.02, 0.98, 4.5], "yaw": 1.5708 },
-    "vehicle-kurier":  { "file": "vehicle-kurier.glb",  "fit": [1.95, 1.28, 4.7], "yaw": 1.5708 },
-    "vehicle-thunder": { "file": "vehicle-thunder.glb", "fit": [2.0, 1.24, 5.0],  "yaw": 1.5708 },
-    "vehicle-cruiser": { "file": "vehicle-cruiser.glb", "fit": [1.98, 1.3, 4.8],  "yaw": 1.5708 }
+    "vehicle-falke": {
+      "file": "vehicle-falke.glb",
+      "fit": [
+        2.02,
+        0.98,
+        4.5
+      ],
+      "yaw": 1.5708
+    },
+    "vehicle-kurier": {
+      "file": "vehicle-kurier.glb",
+      "fit": [
+        1.95,
+        1.28,
+        4.7
+      ],
+      "yaw": 1.5708
+    },
+    "vehicle-thunder": {
+      "file": "vehicle-thunder.glb",
+      "fit": [
+        2.0,
+        1.24,
+        5.0
+      ],
+      "yaw": 1.5708
+    },
+    "vehicle-cruiser": {
+      "file": "vehicle-cruiser.glb",
+      "fit": [
+        1.98,
+        1.3,
+        4.8
+      ],
+      "yaw": 1.5708
+    },
+    "building-house-a": {
+      "file": "building-house-a.glb",
+      "yaw": 1.5708
+    },
+    "building-house-b": {
+      "file": "building-house-b.glb",
+      "yaw": 1.5708
+    },
+    "building-apartment": {
+      "file": "building-apartment.glb",
+      "yaw": 1.5708
+    },
+    "building-tower": {
+      "file": "building-tower.glb",
+      "yaw": 1.5708
+    },
+    "building-office": {
+      "file": "building-office.glb",
+      "yaw": 1.5708
+    },
+    "building-shop": {
+      "file": "building-shop.glb",
+      "yaw": 1.5708
+    },
+    "building-warehouse": {
+      "file": "building-warehouse.glb",
+      "yaw": 1.5708
+    },
+    "ped-civilian-anim": {
+      "file": "ped-civilian-anim.glb",
+      "fit": [
+        0.5,
+        1.75,
+        0.5
+      ],
+      "fitAxis": "y",
+      "ground": true,
+      "yaw": 1.5708
+    },
+    "ped-civilian-idle": {
+      "file": "ped-civilian-idle.glb",
+      "fit": [
+        0.5,
+        1.75,
+        0.5
+      ],
+      "fitAxis": "y",
+      "ground": true,
+      "yaw": 1.5708
+    }
   }
 }

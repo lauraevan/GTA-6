@@ -18,7 +18,10 @@ trademarks, vehicle designs, logos or music.
 | :--: | :--: |
 | the Strandpromenade over Neustadt Bay | Innenstadt — setback towers & avenues |
 
-*In-engine captures (headless). The hero cars are Higgsfield-generated GLBs.*
+*In-engine captures (headless). Cars, buildings and the animated pedestrians
+are Higgsfield-generated GLBs — houses, tenements, offices and towers are
+instanced from the generated architecture library across the whole 2.9 km map
+(see ASSETS.md).*
 
 **Also in this repo:** `unreal/` — a UE **5.7 C++ project starter** (Lumen/Nanite/TSR
 configured, city-JSON importer, ChaosVehicles pawn, wanted subsystem) for the

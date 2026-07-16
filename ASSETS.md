@@ -6,6 +6,29 @@ it matters most. `client/src/core/assets.js` loads anything listed in
 `client/public/models/manifest.json` and transparently falls back to the
 procedural builder per asset.
 
+## Generated set (v2) — the city itself
+
+Batch 2 replaced the procedural building boxes with a Higgsfield-generated
+architecture library, instanced across every chunk by archetype
+(`client/src/world/glbBuildings.js`):
+
+| Asset key | Drives archetypes | Look |
+| --- | --- | --- |
+| `building-tower` | glass ×4 | 40-story blue curtain-wall skyscraper |
+| `building-office` | office ×3, concrete ×2, art deco, civic | 12-story precast office |
+| `building-apartment` | brick ×3, rowhouse | weathered brick tenement, fire escapes, awnings |
+| `building-shop` | shopfront | corner store, glass front + awning |
+| `building-house-a` | house A/C | two-story suburban, porch + garage |
+| `building-house-b` | house B/D | stucco Mediterranean bungalow |
+| `building-warehouse` | warehouse ×2 | rusty corrugated harbor shed |
+| `ped-civilian-anim` | civilian NPCs | **skinned walk cycle** (Casual_Walk, Meshy auto-rig) |
+| `ped-civilian-idle` | civilian NPCs | idle clip, crossfaded by speed |
+
+A hash-stable share of lots (40% downtown, 15% low-rise) intentionally keeps
+the procedural meshes so the night skyline still has emissive lit windows —
+generated GLB textures are unlit at night. Tune in `glbBuildings.js`
+(`PROCEDURAL_SHARE`).
+
 ## Generated set (v1)
 
 Pipeline per asset: `generate_image` (nano-banana-pro concept, clean studio
