@@ -33,7 +33,7 @@ const SHOTS = [
   { name: 'dusk', q: 'medium', hour: 19.3, weather: 'clear', drive: 2600 },
   { name: 'night-rain', q: 'medium', hour: 22.5, weather: 'rain', drive: 2600 },
   // scenic on-foot shots: URL spawn params (px/pz/yaw, nocar) — keep to open road
-  { name: 'bay', q: 'medium', hour: 18.9, weather: 'clear', pos: [-718, 26], yaw: -Math.PI / 2 },
+  { name: 'bay', q: 'medium', hour: 18.9, weather: 'clear', pos: [-760, 26], yaw: -Math.PI / 2 },
   { name: 'downtown', q: 'medium', hour: 12, weather: 'clear', pos: [2, 178], yaw: Math.PI },
 ];
 

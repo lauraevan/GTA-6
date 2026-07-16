@@ -37,6 +37,14 @@ original (fictional automaker: **Adler Motors**). No real-world trademarks or li
 - [x] Headless smoke test (Playwright + SwiftShader) proving the game boots & plays
 - [x] ASSETS.md — Higgsfield prompt sheet for GLB replacements of procedural models
 
+## Batch 2 (in flight)
+
+- [x] Giant premade map: 48 blocks / 2.88 km, bay meets the bayshore freeway
+- [x] GLB building instancer (Higgsfield archetypes replace procedural boxes)
+- [x] Animated ped rigs generated (walk + idle GLBs)
+- [ ] Building GLBs: 7 archetypes texturing at Higgsfield (job ids in ASSETS.md)
+- [ ] CI fetch → manifest wiring → skinned NPCs live in-game
+
 ## Post-v0 ideas (not blocking)
 
 - Replace procedural meshes with Higgsfield GLBs (pipeline + manifest already in place)
