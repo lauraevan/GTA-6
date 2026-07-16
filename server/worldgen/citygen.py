@@ -26,11 +26,12 @@ import math
 import random
 from pathlib import Path
 
-BLOCKS = 32          # city is BLOCKS x BLOCKS cells
+BLOCKS = 48          # city is BLOCKS x BLOCKS cells (2.88 km square)
 BLOCK = 60.0         # metres per cell (48 m lot + 12 m road)
-CHUNK_BLOCKS = 4     # 4x4 cells per streaming chunk -> 8x8 chunks
+CHUNK_BLOCKS = 4     # 4x4 cells per streaming chunk -> 12x12 chunks
 WORLD = BLOCKS * BLOCK
 HALF = WORLD / 2.0
+OFF = (BLOCKS - 32) // 2   # shift of the hand-authored urban core from the 32-block original
 
 # district codes
 WATER, DOWNTOWN, COMMERCIAL, RESIDENTIAL, INDUSTRIAL, RURAL, PARK, BEACH = 0, 1, 2, 3, 4, 5, 6, 7
@@ -40,8 +41,8 @@ T_STREET, T_AVENUE, T_HIGHWAY = 0, 1, 2
 ROAD_SPEED = {T_STREET: 14.0, T_AVENUE: 22.0, T_HIGHWAY: 33.0}
 ROAD_HALF = {T_STREET: 6.0, T_AVENUE: 7.0, T_HIGHWAY: 8.0}
 
-HIGHWAY_LO, HIGHWAY_HI = 4, 28   # boundary-line indices of the ring road
-AVENUE_LINES = (10, 16, 22)
+HIGHWAY_LO, HIGHWAY_HI = 4 + OFF, 28 + OFF   # ring road (west leg doubles as the bayshore freeway)
+AVENUE_LINES = (10 + OFF, 16 + OFF, 22 + OFF)
 
 # building kinds
 K_GENERIC, K_SHOP, K_BANK, K_POLICE, K_HOSPITAL, K_SAFEHOUSE, K_GARAGE, \
@@ -66,17 +67,17 @@ def cell_center(b: int) -> float:
 # ---------------------------------------------------------------------------
 
 def is_water_cell(bx: int, bz: int) -> bool:
-    """West coastline with a large natural bay biting into the city."""
+    """West coastline with a large natural bay reaching the bayshore freeway."""
     if bx <= 1:
         return True
-    # Neustadt Bay proper: ellipse centred just off the west edge
-    ex = (bx + 0.5) / 4.5
-    ez = (bz + 0.5 - 16.0) / 7.5
+    # Neustadt Bay proper: wide ellipse whose rim kisses the ring road west leg
+    ex = (bx + 0.5) / (HIGHWAY_LO - 0.5)
+    ez = (bz + 0.5 - (16.0 + OFF)) / 7.5
     if ex * ex + ez * ez < 1.0:
         return True
     # a soft cove up north
-    cx = (bx + 0.5 - 0.0) / 3.2
-    cz = (bz + 0.5 - 3.0) / 2.6
+    cx = (bx + 0.5) / 3.2
+    cz = (bz + 0.5 - (3.0 + OFF)) / 2.6
     return cx * cx + cz * cz < 1.0
 
 
@@ -89,7 +90,7 @@ def build_districts(rng: random.Random) -> list[list[int]]:
             r = max(abs(bx - c), abs(bz - c))
             if is_water_cell(bx, bz):
                 d[bz][bx] = WATER
-            elif bx <= 5 and (5 <= bz <= 8 or 24 <= bz <= 27):
+            elif bx <= 9 and (5 + OFF <= bz <= 8 + OFF or 24 + OFF <= bz <= 27 + OFF):
                 d[bz][bx] = INDUSTRIAL       # two harbor pockets around the bay
             elif r <= 3.5:
                 d[bz][bx] = DOWNTOWN
@@ -104,7 +105,7 @@ def build_districts(rng: random.Random) -> list[list[int]]:
         for bx in range(BLOCKS):
             if d[bz][bx] in (WATER,):
                 continue
-            if bx > 8:
+            if bx > HIGHWAY_LO:
                 continue
             neighbours = [(bx - 1, bz), (bx + 1, bz), (bx, bz - 1), (bx, bz + 1)]
             if any(0 <= nx < BLOCKS and 0 <= nz < BLOCKS and d[nz][nx] == WATER
@@ -112,8 +113,9 @@ def build_districts(rng: random.Random) -> list[list[int]]:
                 if d[bz][bx] != INDUSTRIAL:
                     d[bz][bx] = BEACH
     # parks: central plaza + a few scattered greens (deterministic picks)
-    d[16][15] = PARK
-    park_candidates = [(9, 10), (21, 20), (11, 22), (24, 12)]
+    d[16 + OFF][15 + OFF] = PARK
+    park_candidates = [(9 + OFF, 10 + OFF), (21 + OFF, 20 + OFF),
+                       (11 + OFF, 22 + OFF), (24 + OFF, 12 + OFF)]
     for bx, bz in park_candidates:
         if d[bz][bx] in (COMMERCIAL, RESIDENTIAL):
             d[bz][bx] = PARK
@@ -216,7 +218,7 @@ OFFICE = [S_OFFICE_A, S_OFFICE_B, S_OFFICE_C]
 BRICK = [S_BRICK_A, S_BRICK_B, S_BRICK_C]
 HOUSES = [S_HOUSE_A, S_HOUSE_B, S_HOUSE_C, S_HOUSE_D]
 
-SPECIAL_BLOCKS = {
+_SPECIALS_32 = {
     (17, 13): ("bank", K_BANK),
     (13, 17): ("police", K_POLICE),
     (22, 9):  ("police", K_POLICE),
@@ -225,13 +227,15 @@ SPECIAL_BLOCKS = {
     (21, 16): ("garage", K_GARAGE),
     (12, 21): ("gunshop", K_GUNSHOP),
     (9, 12):  ("spray", K_SPRAY),
-    (4, 14):  ("spray", K_SPRAY),
 }
+SPECIAL_BLOCKS = {(bx + OFF, bz + OFF): v for (bx, bz), v in _SPECIALS_32.items()}
+SPECIAL_BLOCKS[(6, 14 + OFF)] = ("spray", K_SPRAY)   # docks spray shop by the north harbor
 
-SHOP_BLOCKS = [
+_SHOPS_32 = [
     (11, 14), (14, 11), (18, 10), (21, 13), (20, 19), (17, 22),
     (12, 18), (24, 18), (8, 16), (16, 25), (23, 21), (10, 20),
 ]
+SHOP_BLOCKS = [(bx + OFF, bz + OFF) for bx, bz in _SHOPS_32]
 
 
 def face_rotation(rng, bx, bz):
@@ -465,6 +469,7 @@ def node_xy(i, j):
 
 
 def build_activities(rng):
+    o = OFF
     races = [
         {
             "id": "innenstadt",
@@ -473,8 +478,8 @@ def build_activities(rng):
             "entry": 200,
             "prize": 1500,
             "checkpoints": [
-                node_xy(11, 11), node_xy(16, 11), node_xy(21, 11), node_xy(21, 16),
-                node_xy(21, 21), node_xy(16, 21), node_xy(11, 21), node_xy(11, 16),
+                node_xy(11 + o, 11 + o), node_xy(16 + o, 11 + o), node_xy(21 + o, 11 + o), node_xy(21 + o, 16 + o),
+                node_xy(21 + o, 21 + o), node_xy(16 + o, 21 + o), node_xy(11 + o, 21 + o), node_xy(11 + o, 16 + o),
             ],
         },
         {
@@ -484,8 +489,9 @@ def build_activities(rng):
             "entry": 100,
             "prize": 900,
             "checkpoints": [
-                node_xy(4, 26), node_xy(4, 22), node_xy(4, 18), node_xy(4, 14),
-                node_xy(4, 10), node_xy(4, 6), node_xy(8, 6), node_xy(10, 8),
+                node_xy(HIGHWAY_LO, 34), node_xy(HIGHWAY_LO, 30), node_xy(HIGHWAY_LO, 26),
+                node_xy(HIGHWAY_LO, 22), node_xy(HIGHWAY_LO, 18), node_xy(HIGHWAY_LO, 14),
+                node_xy(16, 14), node_xy(18, 16),
             ],
         },
         {
@@ -495,16 +501,16 @@ def build_activities(rng):
             "entry": 300,
             "prize": 2500,
             "checkpoints": [
-                node_xy(16, 4), node_xy(22, 4), node_xy(28, 8), node_xy(28, 16),
-                node_xy(28, 24), node_xy(22, 28), node_xy(16, 28), node_xy(10, 28),
-                node_xy(4, 24), node_xy(8, 16), node_xy(10, 10), node_xy(10, 4),
+                node_xy(16 + o, 4 + o), node_xy(22 + o, 4 + o), node_xy(28 + o, 8 + o), node_xy(28 + o, 16 + o),
+                node_xy(28 + o, 24 + o), node_xy(22 + o, 28 + o), node_xy(16 + o, 28 + o), node_xy(10 + o, 28 + o),
+                node_xy(4 + o, 24 + o), node_xy(8 + o, 16 + o), node_xy(10 + o, 10 + o), node_xy(10 + o, 4 + o),
             ],
         },
     ]
     # stunt ramps: [x, z, ry(quarter turns), reward]
     stunts = []
-    spots = [(6, 12, 1), (6, 20, 1), (16, 6, 0), (26, 10, 3), (26, 22, 3),
-             (12, 26, 2), (20, 26, 2), (10, 8, 0)]
+    spots = [(6 + o, 12 + o, 1), (6 + o, 20 + o, 1), (16 + o, 6 + o, 0), (26 + o, 10 + o, 3),
+             (26 + o, 22 + o, 3), (12 + o, 26 + o, 2), (20 + o, 26 + o, 2), (10 + o, 8 + o, 0)]
     for i, j, ry in spots:
         x, z = line_pos(i), line_pos(j)
         stunts.append([round(x + 2.5, 2), round(z + 2.5, 2), ry, 250])
@@ -557,8 +563,8 @@ def generate_city(seed: int = 1337) -> dict:
         "shops": pois.get("shops", []),
         "races": races,
         "stunts": stunts,
-        "theftDrop": {"pos": [round(line_pos(4) + 30, 2), round(line_pos(6) + 30, 2)]},
-        "deliveryDepot": {"pos": [round(line_pos(4) + 30, 2), round(line_pos(25) + 30, 2)]},
+        "theftDrop": {"pos": [round(line_pos(5) + 30, 2), round(line_pos(6 + OFF) + 30, 2)]},
+        "deliveryDepot": {"pos": [round(line_pos(5) + 30, 2), round(line_pos(25 + OFF) + 30, 2)]},
         "spawn": {"pos": safe["door"]},
     }
 

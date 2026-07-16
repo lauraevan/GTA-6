@@ -7,6 +7,7 @@ import * as CANNON from 'cannon-es';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GROUP } from '../physics/physics.js';
 import { BuildingFactory, STYLE } from './buildingFactory.js';
+import { GLBBuildingLibrary } from './glbBuildings.js';
 import { RoadFactory } from './roadFactory.js';
 import { PropFactory } from './propFactory.js';
 import { KIND } from './cityData.js';
@@ -20,6 +21,7 @@ export class ChunkManager {
   constructor(G) {
     this.G = G;
     this.buildings = new BuildingFactory(G);
+    this.glbLib = new GLBBuildingLibrary(G);
     this.roads = new RoadFactory(G);
     this.props = new PropFactory(G);
     this.loaded = new Map();   // key -> {group, bodies, disposables, interiors, trafficLights}
@@ -183,8 +185,11 @@ export class ChunkManager {
     for (const m of wetMats) G.wetMats?.add(m);
 
     if (data) {
-      // --- buildings
+      // --- buildings: Higgsfield GLB library first, procedural boxes as the
+      // fallback + a lit-window share of the skyline
       const byStyle = new Map();
+      const byModel = new Map();
+      const glbLots = [];
       for (const b of data.b) {
         const kind = b[7];
         if (SPECIAL_KINDS.has(kind)) {
@@ -196,12 +201,23 @@ export class ChunkManager {
             if (handle) interiors.push(handle);
           }
         } else {
-          const style = b[6];
-          if (!byStyle.has(style)) byStyle.set(style, []);
-          byStyle.get(style).push(b);
+          const model = this.glbLib.modelFor(b);
+          if (model) {
+            if (!byModel.has(model)) byModel.set(model, []);
+            byModel.get(model).push(b);
+            glbLots.push(b);
+          } else {
+            const style = b[6];
+            if (!byStyle.has(style)) byStyle.set(style, []);
+            byStyle.get(style).push(b);
+          }
           addCollider({ x: b[0], y: 0, z: b[1], sx: b[2], sy: b[4], sz: b[3], ry: b[5] * Math.PI / 2 },
             { kind: 'building' });
         }
+      }
+      for (const [model, list] of byModel) {
+        const m = this.glbLib.makeInstanced(model, list);
+        if (m) { group.add(m); disposables.push(m); }
       }
       for (const [style, list] of byStyle) {
         for (const m of this.buildings.makeInstanced(style, list)) {
@@ -209,8 +225,9 @@ export class ChunkManager {
           disposables.push(m); // InstancedMesh.dispose frees instance buffers
         }
       }
-      // rooftop clutter over the tall stuff
-      for (const m of this.props.buildRoofDetails(data.b)) {
+      // rooftop clutter only over procedural flat roofs (GLBs bring their own)
+      const proceduralOnly = data.b.filter((b) => !glbLots.includes(b));
+      for (const m of this.props.buildRoofDetails(proceduralOnly)) {
         group.add(m);
         disposables.push(m);
       }

@@ -11,7 +11,8 @@ export function buildStoryMissions(G) {
   const docks = pois.theftDrop.pos;
 
   // a parked target car on a residential street east of the safehouse
-  const repoCar = [line(26) + 4.7, line(15) + 26];
+  // (line indices track the 48-block map's urban core)
+  const repoCar = [line(34) + 4.7, line(23) + 26];
   // bank geometry helpers
   const bankRear = [2 * bank.pos[0] - bank.door[0], 2 * bank.pos[1] - bank.door[1]];
   const bankSide = [bank.pos[0] + (bank.door[1] - bank.pos[1]) * 1.4, bank.pos[1] - (bank.door[0] - bank.pos[0]) * 1.4];

@@ -51,7 +51,7 @@ def test_worldgen_deterministic():
     assert a == b
     assert a["meta"]["seed"] == 42
     assert len(a["nav"]["nodes"]) > 100
-    assert len(a["chunks"]) == 64
+    assert len(a["chunks"]) == 144
     assert a["pois"]["bank"]["door"]
 
 

@@ -71,7 +71,16 @@ export class Ped {
           ?? model.userData.animations[0];
         const walk = mixer.clipAction(walkClip);
         walk.play();
-        this.skinned = { mixer, walk };
+        // idle clip ships as a sibling GLB on the same auto-rig: track names match
+        let idle = null;
+        const idleTpl = G.assets?.cache?.get('ped-civilian-idle');
+        const idleClip = idleTpl?.userData?.animations?.[0];
+        if (idleClip) {
+          idle = mixer.clipAction(idleClip);
+          idle.play();
+          idle.weight = 0;
+        }
+        this.skinned = { mixer, walk, idle };
       }
     }
     if (!this.skinned) {
@@ -176,10 +185,18 @@ export class Ped {
     if (this.dead) return;
     this.mesh.rotation.y = this.yaw;
     if (this.skinned) {
-      const { mixer, walk } = this.skinned;
+      const { mixer, walk, idle } = this.skinned;
       const moving = this.speed > 0.12;
-      walk.timeScale = moving ? Math.max(0.55, this.speed / 1.55) : 0;
-      if (!moving) walk.time = 0.35; // neutral standing frame
+      if (idle) {
+        // crossfade walk <-> idle by movement speed
+        const target = moving ? 1 : 0;
+        walk.weight += (target - walk.weight) * Math.min(1, 8 * dt);
+        idle.weight = 1 - walk.weight;
+        walk.timeScale = Math.max(0.55, this.speed / 1.55);
+      } else {
+        walk.timeScale = moving ? Math.max(0.55, this.speed / 1.55) : 0;
+        if (!moving) walk.time = 0.35; // neutral standing frame
+      }
       mixer.update(dt);
       return;
     }

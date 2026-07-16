@@ -281,17 +281,25 @@ class Game {
   _smokeRun() {
     const G = this;
     window.__GTA = G;
-    setTimeout(() => {
-      if (CFG.urlSpawn?.noCar) return; // scenic screenshot mode: stay on foot
-      try {
-        // deterministic: put player + a fresh car on the nearest road, get in
-        const n = G.nav.nearestNode(G.player.position.x, G.player.position.z);
-        G.player.position.set(n.x + 2.5, 0, n.z);
-        G.player.body.position.set(n.x + 2.5, 1, n.z);
-        G.vehicles.spawn('falke', new THREE.Vector3(n.x, 0, n.z), 0, { mode: 'parked' });
-        G.player.tryEnterVehicle();
-      } catch (e) { G._errors.push('smoke-enter: ' + e); }
-    }, 2500);
+    if (!CFG.urlSpawn?.noCar) {
+      // deterministic: put player + a fresh car on the nearest road, get in.
+      // retry a few times — SwiftShader frames are slow enough to race timers.
+      let tries = 0;
+      let spawned = false;
+      const iv = setInterval(() => {
+        try {
+          if (G.player.vehicle || ++tries > 14) { clearInterval(iv); return; }
+          const n = G.nav.nearestNode(G.player.position.x, G.player.position.z);
+          if (!spawned) {
+            spawned = true;
+            G.player.position.set(n.x + 2.5, 0, n.z);
+            G.player.body.position.set(n.x + 2.5, 1, n.z);
+            G.vehicles.spawn('falke', new THREE.Vector3(n.x, 0, n.z), 0, { mode: 'parked' });
+          }
+          if (!G.player.entering) G.player.tryEnterVehicle();
+        } catch (e) { G._errors.push('smoke-enter: ' + e); clearInterval(iv); }
+      }, 700);
+    }
     setTimeout(() => {
       try {
         // hold W through the real input path
@@ -303,7 +311,12 @@ class Game {
       try { window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' })); }
       catch (e) { /* ignore */ }
     }, 8600);
-    setTimeout(() => {
+    const startT = performance.now();
+    const reportIv = setInterval(() => {
+      const elapsed = performance.now() - startT;
+      const settled = (G.player.vehicle && elapsed > 9000) || elapsed > 22000;
+      if (!settled) return;
+      clearInterval(reportIv);
       const report = {
         ready: true,
         errors: G._errors,
@@ -317,7 +330,7 @@ class Game {
       window.__GTA_REPORT = report;
       window.__GTA_READY = G._errors.length === 0;
       console.log('GTA_SMOKE_REPORT', JSON.stringify(report));
-    }, 9000);
+    }, 500);
   }
 }
 
