@@ -13,6 +13,7 @@ declare -A ASSETS=(
   [ped-civilian-rigged.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a1ce0ea0-38d6-45c0-b305-548ad29c8263.glb"
   [ped-civilian-anim.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/6f8366b4-281a-4274-8cc0-4271c0cc026e.glb"
   [ped-civilian-idle.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e6931bfd-d393-4b52-938b-c39910596520.glb"
+  [ped-civilian-run.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a14681cf-19e1-4da1-8a7a-b082edc50d4f.glb"
   [building-house-a.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/59385c33-260b-4464-aabd-f268649646d0.glb"
   [building-house-b.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e43eb1d7-b305-4a8d-b339-a5f4514d9c76.glb"
   [building-apartment.glb]="https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/fcb62eb1-69c0-42c5-99c7-6c3c2a6f230c.glb"

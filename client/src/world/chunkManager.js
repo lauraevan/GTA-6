@@ -41,13 +41,19 @@ export class ChunkManager {
     outer.position.y = -0.05;
     G.scene.add(outer);
 
-    // city ground with baked district/road texture
+    // city ground with baked district/road texture, displaced by the terrain
     const groundTex = this.roads.buildGroundTexture();
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(city.meta.worldSize, city.meta.worldSize),
+    const groundGeo = new THREE.PlaneGeometry(city.meta.worldSize, city.meta.worldSize, 96, 96);
+    groundGeo.rotateX(-Math.PI / 2);
+    {
+      const pos = groundGeo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        pos.setY(i, G.terrain.heightAt(pos.getX(i), pos.getZ(i)));
+      }
+      groundGeo.computeVertexNormals();
+    }
+    const ground = new THREE.Mesh(groundGeo,
       new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.96 }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0.0;
     ground.receiveShadow = true;
     G.scene.add(ground);
 
@@ -88,6 +94,29 @@ export class ChunkManager {
       skyline.setMatrixAt(i, m4);
     });
     G.scene.add(skyline);
+
+    // the smugglers' cove: hollow rock chamber hidden on the big island
+    if (city.pois.cove) {
+      const [cx2, cz2] = city.pois.cove.pos;
+      const baseY = G.terrain.heightAt(cx2, cz2);
+      const rockMat = new THREE.MeshStandardMaterial({ color: '#6b6560', roughness: 0.95, flatShading: true });
+      const boulders = [
+        [0, 0, -5, 7, 6.5, 4, 0.3], [-5.5, 0, -2, 4.5, 5.5, 5, -0.4], [5.5, 0, -2, 4.5, 5.5, 5, 0.5],
+        [-4.5, 0, 3.5, 4, 4.5, 4, 0.9], [4.5, 0, 3.5, 4, 4.5, 4, -0.8],
+        [0, 4.6, -1, 9, 2.4, 8, 0.1], // roof slab
+      ];
+      const cove = new THREE.Group();
+      for (const [ox, oy, oz, sx, sy, sz, ry] of boulders) {
+        const rock = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), rockMat);
+        rock.position.set(cx2 + ox, baseY + oy + sy / 2 - 0.6, cz2 + oz);
+        rock.rotation.y = ry;
+        rock.castShadow = true;
+        cove.add(rock);
+        G.physics.addStaticBox(cx2 + ox, baseY + oy + sy / 2 - 0.6, cz2 + oz, sx, sy, sz, ry, { kind: 'rock' });
+      }
+      G.scene.add(cove);
+      // (the stash inside is spawned by Pickups.initFixedSpawners)
+    }
 
     // stunt ramps (always loaded, they're few)
     for (const s of city.pois.stunts) {
@@ -211,8 +240,10 @@ export class ChunkManager {
             if (!byStyle.has(style)) byStyle.set(style, []);
             byStyle.get(style).push(b);
           }
-          addCollider({ x: b[0], y: 0, z: b[1], sx: b[2], sy: b[4], sz: b[3], ry: b[5] * Math.PI / 2 },
-            { kind: 'building' });
+          addCollider({
+            x: b[0], y: (G.terrain?.heightAt(b[0], b[1]) ?? 0) - 0.15, z: b[1],
+            sx: b[2], sy: b[4], sz: b[3], ry: b[5] * Math.PI / 2,
+          }, { kind: 'building' });
         }
       }
       for (const [model, list] of byModel) {

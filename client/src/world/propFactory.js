@@ -145,10 +145,11 @@ export class PropFactory {
       const im = new THREE.InstancedMesh(geo, mat, list.length);
       im.castShadow = this.G.settings.quality === 'high';
       list.forEach((p, i) => {
+        const y = this.G.terrain?.heightAt(p[0], p[1]) ?? 0;
         q.setFromEuler(new THREE.Euler(0, (p[3] || 0) * Math.PI / 2, 0));
-        m4.compose(new THREE.Vector3(p[0], 0, p[1]), q, new THREE.Vector3(1, 1, 1));
+        m4.compose(new THREE.Vector3(p[0], y, p[1]), q, new THREE.Vector3(1, 1, 1));
         im.setMatrixAt(i, m4);
-        each?.(p);
+        each?.(p, y);
       });
       meshes.push(im);
     };
@@ -157,7 +158,7 @@ export class PropFactory {
       switch (type) {
         case PROP.STREETLIGHT:
           inst(this.geo.pole, this.mats.pole, list,
-            (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.24, sy: 5.2, sz: 0.24, ry: 0 }));
+            (p, y) => colliders.push({ x: p[0], y, z: p[1], sx: 0.24, sy: 5.2, sz: 0.24, ry: 0 }));
           inst(this.geo.lampArm, this.mats.pole, list);
           inst(this.geo.lampHead, this.mats.lampHead, list);
           inst(this.geo.lightCone, this.mats.lightCone, list);
@@ -172,11 +173,11 @@ export class PropFactory {
           }
           if (palms.length) {
             inst(this.geo.palm, [this.mats.palmTrunk, this.mats.palmFrond], palms,
-              (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.4, sy: 5, sz: 0.4, ry: 0 }));
+              (p, y) => colliders.push({ x: p[0], y, z: p[1], sx: 0.4, sy: 5, sz: 0.4, ry: 0 }));
           }
           if (regular.length) {
             inst(this.geo.trunk, this.mats.trunk, regular,
-              (p) => colliders.push({ x: p[0], y: 0, z: p[1], sx: 0.4, sy: 2.4, sz: 0.4, ry: 0 }));
+              (p, y) => colliders.push({ x: p[0], y, z: p[1], sx: 0.4, sy: 2.4, sz: 0.4, ry: 0 }));
             const a = regular.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 === 0);
             const b = regular.filter((p) => ((p[0] * 7 + p[1] * 13) | 0) % 2 !== 0);
             if (a.length) inst(this.geo.canopy, this.mats.canopy, a);

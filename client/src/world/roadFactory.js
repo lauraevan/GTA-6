@@ -107,6 +107,20 @@ export class RoadFactory {
       wetMats.push(m);
       return m;
     };
+    // bake the mesh transform, then drape vertices over the terrain
+    const drape = (mesh, lift = 0.05) => {
+      mesh.updateMatrix();
+      mesh.geometry.applyMatrix4(mesh.matrix);
+      mesh.position.set(0, 0, 0);
+      mesh.rotation.set(0, 0, 0);
+      mesh.updateMatrix();
+      const pos = mesh.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        pos.setY(i, (this.G.terrain?.heightAt(pos.getX(i), pos.getZ(i)) ?? 0) + lift);
+      }
+      mesh.geometry.computeVertexNormals();
+      return mesh;
+    };
 
     for (const r of city.roads) {
       const half = city.roadHalf(r.t);
@@ -117,7 +131,7 @@ export class RoadFactory {
         const lo = Math.max(a0, z0), hi = Math.min(a1, z1);
         if (hi - lo < 2) continue;
         const len = hi - lo, mid = (lo + hi) / 2;
-        const geo = new THREE.PlaneGeometry(half * 2, len);
+        const geo = new THREE.PlaneGeometry(half * 2, len, 1, Math.max(1, Math.ceil(len / 15)));
         const tex = this.laneTexture(r.t).clone();
         tex.needsUpdate = true;
         tex.repeat.set(1, len / 24);
@@ -125,9 +139,10 @@ export class RoadFactory {
         m.rotation.x = -Math.PI / 2;
         m.position.set(c, 0.03, mid);
         m.receiveShadow = true;
+        drape(m);
         meshes.push(m);
         // curbs (skip near segment ends → natural corner gaps)
-        if (len > 26) {
+        if (len > 26 && Math.abs(this.G.terrain?.heightAt(c, mid) ?? 0) < 0.6) {
           const cl = len - 22;
           for (const side of [-1, 1]) {
             const cxp = c + side * (half + 0.8);
@@ -143,7 +158,7 @@ export class RoadFactory {
         const lo = Math.max(a0, x0), hi = Math.min(a1, x1);
         if (hi - lo < 2) continue;
         const len = hi - lo, mid = (lo + hi) / 2;
-        const geo = new THREE.PlaneGeometry(half * 2, len);
+        const geo = new THREE.PlaneGeometry(half * 2, len, 1, Math.max(1, Math.ceil(len / 15)));
         const tex = this.laneTexture(r.t).clone();
         tex.needsUpdate = true;
         tex.repeat.set(1, len / 24);
@@ -152,8 +167,9 @@ export class RoadFactory {
         m.rotation.z = Math.PI / 2;
         m.position.set(mid, 0.03, c);
         m.receiveShadow = true;
+        drape(m);
         meshes.push(m);
-        if (len > 26) {
+        if (len > 26 && Math.abs(this.G.terrain?.heightAt(mid, c) ?? 0) < 0.6) {
           const cl = len - 22;
           for (const side of [-1, 1]) {
             const czp = c + side * (half + 0.8);
@@ -183,7 +199,7 @@ export class RoadFactory {
       for (const e of nav.adj[n.id]) maxHalf = Math.max(maxHalf, city.roadHalf(e.t));
       const patch = new THREE.Mesh(new THREE.PlaneGeometry(maxHalf * 2 + 1, maxHalf * 2 + 1), patchMat);
       patch.rotation.x = -Math.PI / 2;
-      patch.position.set(n.x, 0.045, n.z);
+      patch.position.set(n.x, (this.G.terrain?.heightAt(n.x, n.z) ?? 0) + 0.045, n.z);
       patch.receiveShadow = true;
       meshes.push(patch);
     }

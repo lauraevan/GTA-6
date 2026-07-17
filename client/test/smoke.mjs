@@ -77,7 +77,7 @@ server.close();
 console.log('[smoke] report:', JSON.stringify(report, null, 2));
 const webglErrors = consoleErrors.filter((e) =>
   !/swiftshader|GPU|fallback|WebGL.*performance/i.test(e) &&
-  !/api\/health|Failed to load resource/.test(e)); // backend probe is optional
+  !/api\/health|Failed to load resource|models\/.*\.glb/.test(e)); // backend probe + soft asset fallbacks
 if (webglErrors.length) console.log('[smoke] console errors:', webglErrors.slice(0, 12));
 
 const ok = report && report.ready && (report.errors?.length ?? 1) === 0 &&

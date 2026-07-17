@@ -26,6 +26,15 @@ export class Pickups {
     this.addSpawner('armor', 50, new THREE.Vector3(pois.police[0].door[0] - 4, 0, pois.police[0].door[1] + 4), 120);
     // a bat stashed in the central park
     this.spawn('weapon', { weapon: 'bat' }, new THREE.Vector3(-30, 0, 30));
+    // the smugglers' cove stash (hidden island chamber — no map marker)
+    if (pois.cove) {
+      const [cx, cz] = pois.cove.pos;
+      this.spawn('cash', 400, new THREE.Vector3(cx - 1.2, 0, cz - 1.5));
+      this.spawn('cash', 400, new THREE.Vector3(cx + 1.2, 0, cz - 1.8));
+      this.spawn('cash', 400, new THREE.Vector3(cx, 0, cz - 3.2));
+      this.spawn('weapon', { weapon: 'rifle', ammo: 60 }, new THREE.Vector3(cx, 0, cz - 2.4));
+      this.spawn('armor', 100, new THREE.Vector3(cx, 0, cz - 0.5));
+    }
   }
 
   addSpawner(type, value, pos, interval) {
@@ -40,9 +49,10 @@ export class Pickups {
       new THREE.BoxGeometry(...st.size),
       new THREE.MeshStandardMaterial({
         color: st.color, emissive: st.emissive, emissiveIntensity: 0.7, roughness: 0.4 }));
-    mesh.position.copy(pos).setY(0.7);
+    const baseY = (this.G.terrain?.heightAt(pos.x, pos.z) ?? 0) + 0.7;
+    mesh.position.copy(pos).setY(baseY);
     this.G.scene.add(mesh);
-    const item = { type, value, mesh, t: Math.random() * 6, life: type === 'cash' ? 40 : Infinity };
+    const item = { type, value, mesh, baseY, t: Math.random() * 6, life: type === 'cash' ? 40 : Infinity };
     this.items.push(item);
     return item;
   }
@@ -70,10 +80,10 @@ export class Pickups {
       it.t += dt;
       it.life -= dt;
       it.mesh.rotation.y += dt * 2.2;
-      it.mesh.position.y = 0.7 + Math.sin(it.t * 2.4) * 0.12;
+      it.mesh.position.y = (it.baseY ?? 0.7) + Math.sin(it.t * 2.4) * 0.12;
       if (it.life <= 0) { this.remove(it); continue; }
       if (!p || p.dead) continue;
-      const d = it.mesh.position.distanceTo(p.position.clone().setY(0.7));
+      const d = it.mesh.position.distanceTo(p.position.clone().setY(it.mesh.position.y));
       if (d < 1.25) this.collect(it);
     }
     for (const s of this.spawners) {

@@ -107,8 +107,9 @@ export class GLBBuildingLibrary {
     const q = new THREE.Quaternion();
     entries.forEach((b, i) => {
       const [x, z, w, d, h, ry] = b;
+      const baseY = (this.G.terrain?.heightAt(x, z) ?? 0) - 0.15;
       q.setFromEuler(new THREE.Euler(0, ry * Math.PI / 2, 0));
-      m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(w, h, d));
+      m4.compose(new THREE.Vector3(x, baseY, z), q, new THREE.Vector3(w, h, d));
       mesh.setMatrixAt(i, m4);
     });
     return mesh;

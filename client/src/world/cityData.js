@@ -40,6 +40,7 @@ export class CityData {
     this.meta = data.meta;
     this.districts = data.districts;   // [bz][bx]
     this.roads = data.roads;           // merged runs
+    this.terrain = data.terrain;       // height grid (see world/terrain.js)
     this.nav = data.nav;
     this.pois = data.pois;
     this.half = this.meta.worldSize / 2;

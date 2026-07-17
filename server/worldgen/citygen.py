@@ -44,6 +44,25 @@ ROAD_HALF = {T_STREET: 6.0, T_AVENUE: 7.0, T_HIGHWAY: 8.0}
 HIGHWAY_LO, HIGHWAY_HI = 4 + OFF, 28 + OFF   # ring road (west leg doubles as the bayshore freeway)
 AVENUE_LINES = (10 + OFF, 16 + OFF, 22 + OFF)
 
+# islands in the bay: (cell cx, cell cz, radius in cells)
+ISLANDS = [(5.0, 28.0, 1.9), (4.0, 18.5, 1.2)]
+
+# terrain hills: (world x, world z, radius m, height m) — outskirts + islands
+HILLS = [
+    (-950, -1150, 300, 34), (1120, -900, 400, 56), (1180, 980, 340, 44),
+    (-420, 1230, 320, 30), (420, -1290, 300, 26), (1310, 60, 280, 26),
+    (60, 1310, 260, 22),
+    (-1140, 270, 130, 20),   # big island peak (hides the smugglers' cove)
+    (-1200, -300, 100, 10),  # small island dune
+]
+# elongated ridgelines: (x1, z1, x2, z2, radius m, height m)
+RIDGES = [
+    (850, -1250, 1350, -650, 170, 30),   # north-east ridge arcing behind the big hill
+    (700, 1150, 1350, 700, 150, 24),     # south-east ridge
+    (-800, -1300, -250, -1350, 130, 18), # north coastal bluffs
+]
+TERRAIN_STEP = 30.0
+
 # building kinds
 K_GENERIC, K_SHOP, K_BANK, K_POLICE, K_HOSPITAL, K_SAFEHOUSE, K_GARAGE, \
     K_GUNSHOP, K_SPRAY, K_WAREHOUSE, K_HOUSE, K_FARM = range(12)
@@ -112,6 +131,24 @@ def build_districts(rng: random.Random) -> list[list[int]]:
                    for nx, nz in neighbours):
                 if d[bz][bx] != INDUSTRIAL:
                     d[bz][bx] = BEACH
+    # islands in the bay (rural blobs; their rims become beach below)
+    for icx, icz, ir in ISLANDS:
+        for bz in range(BLOCKS):
+            for bx in range(BLOCKS):
+                if (bx + 0.5 - icx) ** 2 + (bz + 0.5 - icz) ** 2 < ir * ir:
+                    if d[bz][bx] == WATER:
+                        d[bz][bx] = RURAL
+
+    # beach ring around islands too
+    for bz in range(BLOCKS):
+        for bx in range(BLOCKS):
+            if d[bz][bx] != RURAL or bx > HIGHWAY_LO + 2:
+                continue
+            neighbours = [(bx - 1, bz), (bx + 1, bz), (bx, bz - 1), (bx, bz + 1)]
+            if any(0 <= nx < BLOCKS and 0 <= nz < BLOCKS and d[nz][nx] == WATER
+                   for nx, nz in neighbours):
+                d[bz][bx] = BEACH
+
     # parks: central plaza + a few scattered greens (deterministic picks)
     d[16 + OFF][15 + OFF] = PARK
     park_candidates = [(9 + OFF, 10 + OFF), (21 + OFF, 20 + OFF),
@@ -422,6 +459,94 @@ def gen_block_buildings(rng, d, bx, bz, pois):
 
 
 # ---------------------------------------------------------------------------
+# terrain: gaussian hills, flattened under the urban footprint
+# ---------------------------------------------------------------------------
+
+def build_terrain(d) -> dict:
+    """Height grid sampled every TERRAIN_STEP m. The city core stays flat
+    (Vice-City-style); hills roll through the outskirts and islands; water
+    cells sink to a seabed."""
+    n = int(WORLD / TERRAIN_STEP) + 1  # 97 samples per axis
+
+    # per-cell targets, bilinearly interpolated for smooth coasts/edges
+    FLAT = {DOWNTOWN, COMMERCIAL, RESIDENTIAL, INDUSTRIAL, PARK}
+
+    def cell_factor(bx, bz):
+        dist = district_at(d, bx, bz)
+        if dist in FLAT:
+            return 0.0, 0.0        # (hill factor, base height)
+        if dist == BEACH:
+            return 0.12, 0.35
+        if dist == WATER:
+            return 0.0, -4.0
+        return 1.0, 0.0            # rural: full hills
+
+    fgrid = [[cell_factor(bx, bz) for bx in range(BLOCKS)] for bz in range(BLOCKS)]
+
+    def sample_factor(x, z):
+        # bilinear over cell centres
+        gx = (x + HALF) / BLOCK - 0.5
+        gz = (z + HALF) / BLOCK - 0.5
+        x0, z0 = int(math.floor(gx)), int(math.floor(gz))
+        tx, tz = gx - x0, gz - z0
+        out_f, out_b = 0.0, 0.0
+        for (ix, wx) in ((x0, 1 - tx), (x0 + 1, tx)):
+            for (iz, wz) in ((z0, 1 - tz), (z0 + 1, tz)):
+                cx = min(max(ix, 0), BLOCKS - 1)
+                cz = min(max(iz, 0), BLOCKS - 1)
+                f, b = fgrid[cz][cx]
+                out_f += f * wx * wz
+                out_b += b * wx * wz
+        return out_f, out_b
+
+    def ridge_height(x, z):
+        h = 0.0
+        for x1, z1, x2, z2, rr, hh in RIDGES:
+            # distance to the segment
+            dx, dz = x2 - x1, z2 - z1
+            t = ((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz)
+            t = min(max(t, 0.0), 1.0)
+            px, pz = x1 + dx * t, z1 + dz * t
+            q = ((x - px) ** 2 + (z - pz) ** 2) / (rr * rr)
+            if q < 4.0:
+                # gentle crest variation along the ridge line
+                h += hh * math.exp(-q * 1.5) * (0.8 + 0.2 * math.sin(t * 9.4))
+        return h
+
+    grid = []
+    for iz in range(n):
+        row = []
+        z = -HALF + iz * TERRAIN_STEP
+        for ix in range(n):
+            x = -HALF + ix * TERRAIN_STEP
+            h = 0.0
+            for hx, hz, hr, hh in HILLS:
+                q = ((x - hx) ** 2 + (z - hz) ** 2) / (hr * hr)
+                if q < 4.0:
+                    h += hh * math.exp(-q * 1.6)
+            h += ridge_height(x, z)
+            # rolling countryside undulation so the outskirts are never flat
+            h += 4.5 * math.sin(x / 210.0) * math.cos(z / 260.0) \
+               + 2.8 * math.sin(x / 95.0 + 1.7) * math.sin(z / 120.0) + 3.0
+            f, base = sample_factor(x, z)
+            row.append(round(base + max(0.0, h) * f, 2))
+        grid.append(row)
+    return {"step": TERRAIN_STEP, "n": n, "h": grid}
+
+
+def terrain_height(terrain, x, z):
+    """Bilinear height lookup (mirrors the client implementation)."""
+    step, n, g = terrain["step"], terrain["n"], terrain["h"]
+    gx = min(max((x + HALF) / step, 0), n - 1.001)
+    gz = min(max((z + HALF) / step, 0), n - 1.001)
+    x0, z0 = int(gx), int(gz)
+    tx, tz = gx - x0, gz - z0
+    a = g[z0][x0] * (1 - tx) + g[z0][x0 + 1] * tx
+    b = g[z0 + 1][x0] * (1 - tx) + g[z0 + 1][x0 + 1] * tx
+    return a * (1 - tz) + b * tz
+
+
+# ---------------------------------------------------------------------------
 # street furniture along roads
 # ---------------------------------------------------------------------------
 
@@ -549,6 +674,7 @@ def generate_city(seed: int = 1337) -> dict:
     for p in gen_road_props(d, runs):
         chunk_of(p[0], p[1])["p"].append(p)
 
+    terrain = build_terrain(d)
     races, stunts = build_activities(rng)
 
     safe = pois["safehouse"][0]
@@ -566,6 +692,9 @@ def generate_city(seed: int = 1337) -> dict:
         "theftDrop": {"pos": [round(line_pos(5) + 30, 2), round(line_pos(6 + OFF) + 30, 2)]},
         "deliveryDepot": {"pos": [round(line_pos(5) + 30, 2), round(line_pos(25 + OFF) + 30, 2)]},
         "spawn": {"pos": safe["door"]},
+        # the smugglers' cove: hidden stash behind the big island's peak
+        "cove": {"pos": [round(-HALF + ISLANDS[0][0] * BLOCK + 26, 2),
+                          round(-HALF + ISLANDS[0][1] * BLOCK - 38, 2)]},
     }
 
     return {
@@ -583,6 +712,7 @@ def generate_city(seed: int = 1337) -> dict:
         },
         "districts": d,
         "roads": runs,
+        "terrain": terrain,
         "nav": {"nodes": nodes, "edges": edges},
         "chunks": [c for row in chunks for c in row],
         "pois": pois_out,

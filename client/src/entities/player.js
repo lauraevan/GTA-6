@@ -179,9 +179,9 @@ export class Player {
       G.cameraRig?.shake(0.4);
     }
     const door = v.doorPos(-1);
-    door.y = 0;
+    door.y = (G.terrain?.heightAt(door.x, door.z) ?? 0);
     this.position.copy(door);
-    this.body.position.set(door.x, 1.0, door.z);
+    this.body.position.set(door.x, door.y + 1.0, door.z);
     this.body.velocity.set(v.velocity.x * 0.4, 0, v.velocity.z * 0.4);
     this.mesh.visible = true;
     this.body.collisionFilterMask = GROUP.STATIC | GROUP.VEHICLE | GROUP.DEBRIS;
@@ -216,17 +216,23 @@ export class Player {
     if (this.vehicle) this._updateDriving(dt);
     else this._updateOnFoot(dt);
 
-    // water: drowning
+    // water: swim on the surface; drown only after a long while
     const inWater = G.city.isWaterAt(this.position.x, this.position.z) && !this.vehicle;
     if (inWater) {
       this.waterT += dt;
-      if (this.waterT > 2.5) this.damage(6 * dt);
+      // buoyancy: float the capsule up to the surface
+      if (this.body.position.y < 0.35) {
+        this.body.velocity.y += Math.min(30 * dt, 0.35 - this.body.position.y + 0.4);
+        if (this.body.velocity.y > 2.5) this.body.velocity.y = 2.5;
+      }
+      if (this.waterT > 20) this.damage(5 * dt); // exhaustion
     } else this.waterT = 0;
 
     // fell through / off the world
     if (this.body.position.y < -30) {
       const n = G.nav.nearestNode(this.position.x, this.position.z);
-      this.body.position.set(n?.x ?? 0, 2, n?.z ?? 0);
+      const gy = G.terrain?.heightAt(n?.x ?? 0, n?.z ?? 0) ?? 0;
+      this.body.position.set(n?.x ?? 0, gy + 2, n?.z ?? 0);
       this.body.velocity.set(0, 0, 0);
     }
 

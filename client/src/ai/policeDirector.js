@@ -414,8 +414,9 @@ export class PoliceDirector {
     const p = G.player.position;
     h.angle += dt * 0.35;
     const r = 30;
+    const groundY = Math.max(0, this.G.terrain?.heightAt(p.x, p.z) ?? 0);
     const target = new THREE.Vector3(
-      p.x + Math.cos(h.angle) * r, 40 + Math.sin(h.angle * 2.3) * 3, p.z + Math.sin(h.angle) * r);
+      p.x + Math.cos(h.angle) * r, groundY + 40 + Math.sin(h.angle * 2.3) * 3, p.z + Math.sin(h.angle) * r);
     h.group.position.lerp(target, Math.min(1, 1.2 * dt));
     h.group.lookAt(p.x, h.group.position.y - 6, p.z);
     h.rotor.rotation.y += dt * 30;

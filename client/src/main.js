@@ -14,6 +14,7 @@ import { Particles } from './engine/particles.js';
 import { PhysicsWorld } from './physics/physics.js';
 import { RagdollSystem } from './physics/ragdoll.js';
 import { CityData } from './world/cityData.js';
+import { Terrain } from './world/terrain.js';
 import { NavGraph } from './world/navGraph.js';
 import { ChunkManager } from './world/chunkManager.js';
 import { ZoneRegistry } from './world/interiors.js';
@@ -76,6 +77,8 @@ class Game {
 
     progress(0.25, 'pouring the asphalt…');
     this.physics = new PhysicsWorld(this);
+    this.terrain = new Terrain(this.city);
+    this.terrain.buildPhysics(this.physics);
     this.ragdolls = new RagdollSystem(this);
     this.zones = new ZoneRegistry(this);
     this.markers = new MarkerSystem(this);
@@ -214,8 +217,9 @@ class Game {
     if (CFG.urlWeather) this.weather.force(CFG.urlWeather);
     if (CFG.urlSpawn) {
       const s = CFG.urlSpawn;
-      this.player.position.set(s.x, 0, s.z);
-      this.player.body.position.set(s.x, 1, s.z);
+      const gy = this.terrain.heightAt(s.x, s.z);
+      this.player.position.set(s.x, gy, s.z);
+      this.player.body.position.set(s.x, gy + 1, s.z);
       this.cameraRig.yaw = s.yaw;
       this.chunks.warmup(s.x, s.z);
     }

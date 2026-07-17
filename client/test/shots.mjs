@@ -35,6 +35,8 @@ const SHOTS = [
   // scenic on-foot shots: URL spawn params (px/pz/yaw, nocar) — keep to open road
   { name: 'bay', q: 'medium', hour: 18.9, weather: 'clear', pos: [-760, 26], yaw: -Math.PI / 2 },
   { name: 'downtown', q: 'medium', hour: 12, weather: 'clear', pos: [2, 178], yaw: Math.PI },
+  { name: 'hills', q: 'medium', hour: 16.5, weather: 'clear', pos: [962, -898], yaw: Math.PI / 2 },
+  { name: 'island', q: 'medium', hour: 18.6, weather: 'clear', pos: [-1080, 242], yaw: -Math.PI / 2 },
 ];
 
 for (const s of SHOTS) {

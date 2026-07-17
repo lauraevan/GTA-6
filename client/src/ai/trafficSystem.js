@@ -13,10 +13,24 @@ const LIGHT_CYCLE = 14; // seconds NS+EW
 export class TrafficSystem {
   constructor(G) {
     this.G = G;
-    this.cars = [];      // {v, edge, toNode, speed, curSpeed, honkT, blockedT, swerve}
+    this.cars = [];      // {v, edge, toNode, speed, curSpeed, honkT, blockedT, swerve, panicT}
     this.t = 0;
     this.spawnT = 0;
     G.events.on('trafficCrashed', ({ vehicle }) => this.onCrashed(vehicle));
+    // gunfire and explosions send nearby drivers into a panic
+    const panic = (pos, radius) => {
+      for (const car of this.cars) {
+        if (car.v.position.distanceTo(pos) < radius) {
+          car.panicT = 6 + Math.random() * 3;
+          if (car.honkT <= 0) {
+            car.honkT = 2;
+            G.audio?.play('horn', { pos: car.v.position, vol: 0.5 });
+          }
+        }
+      }
+    };
+    G.events.on('gunshot', ({ pos }) => panic(pos, 45));
+    G.events.on('explosion', ({ pos }) => panic(pos, 70));
   }
 
   /** green axis at a node right now: 'ns' | 'ew' */
@@ -155,9 +169,11 @@ export class TrafficSystem {
 
       // desired speed with rules
       let desired = car.speed;
+      car.panicT = Math.max(0, (car.panicT ?? 0) - dt);
+      if (car.panicT > 0) desired = car.speed * 1.7; // flooring it away from gunfire
 
-      // red light: stop short of the node
-      if (dNode < 16 && dNode > 7 && this.isRedFor(car.edge, car.toNode)) desired = 0;
+      // red light: stop short of the node (ignored while panicking)
+      if (car.panicT <= 0 && dNode < 16 && dNode > 7 && this.isRedFor(car.edge, car.toNode)) desired = 0;
 
       // car following: anything ahead in my lane?
       const heading = toT.clone().normalize();
@@ -190,15 +206,19 @@ export class TrafficSystem {
         } else car.swerve = Math.max(0, car.swerve - dt * 2);
       } else car.swerve = Math.max(0, car.swerve - dt * 2);
 
-      // integrate speed
+      // integrate speed (+ brake-light state for the tail lamps)
       const accel = desired > car.curSpeed ? 6 : 14;
       car.curSpeed += clamp(desired - car.curSpeed, -accel * dt, accel * dt);
       car.curSpeed = Math.max(0, car.curSpeed);
+      v._braking = desired < car.curSpeed - 0.4;
 
-      // kinematic move via body velocity (collisions still push dynamic bodies)
+      // kinematic move via body velocity (collisions still push dynamic bodies);
+      // ride height tracks the terrain so country traffic climbs the hills
       const dir = toT.normalize();
       const body = v.body;
       body.velocity.set(dir.x * car.curSpeed, 0, dir.z * car.curSpeed);
+      const groundY = (G.terrain?.heightAt(body.position.x, body.position.z) ?? 0) + v.stanceY;
+      body.position.y += (groundY - body.position.y) * Math.min(1, 10 * dt);
       // face travel direction
       if (car.curSpeed > 0.5) {
         const yaw = Math.atan2(dir.x, dir.z);

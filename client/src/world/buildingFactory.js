@@ -79,18 +79,48 @@ export class BuildingFactory {
     const draw = (litOnly) => (ctx, w, h) => {
       ctx.fillStyle = litOnly ? '#000' : def.base;
       ctx.fillRect(0, 0, w, h);
-      if (!litOnly) noise2d(ctx, w, h, 0.05, 500);
+      if (!litOnly) noise2d(ctx, w, h, 0.05, 700);
       const cw = w / def.cols, ch = h / def.rows;
       let s = 12345 + style * 999;
       const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      if (!litOnly) {
+        // floor slabs + parapet + grime streaks for a weathered, real look
+        ctx.fillStyle = 'rgba(0,0,0,0.16)';
+        for (let r = 0; r <= def.rows; r++) ctx.fillRect(0, r * ch - 1, w, 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillRect(0, 0, w, 5);
+        for (let g = 0; g < 4; g++) {
+          const gx = rnd() * w;
+          const grad = ctx.createLinearGradient(0, 0, 0, h);
+          grad.addColorStop(0, 'rgba(20,18,14,0.16)');
+          grad.addColorStop(1, 'rgba(20,18,14,0)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(gx, 0, 3 + rnd() * 5, h);
+        }
+      }
       for (let r = 0; r < def.rows; r++) {
         for (let c = 0; c < def.cols; c++) {
           if (rnd() > def.winP) continue;
           const lit = rnd() < def.litP;
           if (litOnly && !lit) continue;
-          ctx.fillStyle = litOnly ? def.lit : (lit ? def.win : def.win);
           const pad = 0.22;
-          ctx.fillRect(c * cw + cw * pad, r * ch + ch * pad, cw * (1 - 2 * pad), ch * (1 - 2 * pad));
+          const wx = c * cw + cw * pad, wy = r * ch + ch * pad;
+          const ww = cw * (1 - 2 * pad), wh = ch * (1 - 2 * pad);
+          if (litOnly) {
+            ctx.fillStyle = def.lit;
+            ctx.fillRect(wx, wy, ww, wh);
+          } else {
+            // sky-reflection gradient in the glass + sill line below
+            const g2 = ctx.createLinearGradient(0, wy, 0, wy + wh);
+            const tint = 12 + (rnd() * 26) | 0;
+            g2.addColorStop(0, `rgba(${140 + tint},${160 + tint},${180 + tint},0.9)`);
+            g2.addColorStop(0.45, def.win);
+            g2.addColorStop(1, def.win);
+            ctx.fillStyle = g2;
+            ctx.fillRect(wx, wy, ww, wh);
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.fillRect(wx - 1, wy + wh, ww + 2, 1.5);
+          }
         }
       }
     };
@@ -114,20 +144,21 @@ export class BuildingFactory {
     const mats = this.materials(style);
     const isHouse = HOUSE_STYLES.has(style);
 
-    // expand tiers into individual instance transforms
+    // expand tiers into individual instance transforms (terrain-based footing)
     const xforms = [];
     for (const b of entries) {
       const [x, z, w, d, h, ry] = b;
+      const baseY = (this.G.terrain?.heightAt(x, z) ?? 0) - 0.15;
       const tiers = b[8];
       if (tiers && tiers.length) {
-        let y = 0;
+        let y = baseY;
         for (const [ws, ds, hf] of tiers) {
           const th = h * hf;
           xforms.push({ x, z, y, w: w * ws, d: d * ds, h: th, ry });
           y += th;
         }
       } else {
-        xforms.push({ x, z, y: 0, w, d, h, ry });
+        xforms.push({ x, z, y: baseY, w, d, h, ry });
       }
     }
 
@@ -149,10 +180,14 @@ export class BuildingFactory {
       roofMesh.castShadow = mesh.castShadow;
       meshes.push(roofMesh);
     }
+    const tint = new THREE.Color();
     xforms.forEach((t, i) => {
       q.setFromEuler(new THREE.Euler(0, t.ry * Math.PI / 2, 0));
       m4.compose(new THREE.Vector3(t.x, t.y, t.z), q, new THREE.Vector3(t.w, t.h, t.d));
       mesh.setMatrixAt(i, m4);
+      // subtle per-building tonal variation breaks up the repetition
+      const j = 0.9 + (Math.abs((t.x * 17.3 + t.z * 9.1) | 0) % 21) / 100;
+      mesh.setColorAt(i, tint.setScalar(j));
       if (roofMesh) {
         m4.compose(new THREE.Vector3(t.x, t.y + t.h, t.z), q,
           new THREE.Vector3(t.w * 1.08, Math.min(t.w, t.d) * 0.55, t.d * 1.08));

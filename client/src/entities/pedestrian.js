@@ -66,21 +66,29 @@ export class Ped {
       if (model && model.userData.skinned && model.userData.animations?.length) {
         this.mesh = model;
         this.parts = null;
+        // wardrobe variety: subtle per-ped tint so crowds don't look cloned
+        model.traverse((o) => {
+          if (o.isMesh && o.material) {
+            o.material = o.material.clone();
+            o.material.color.offsetHSL((Math.random() - 0.5) * 0.06,
+              (Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.1);
+          }
+        });
         const mixer = new THREE.AnimationMixer(model);
         const walkClip = model.userData.animations.find((c) => /walk/i.test(c.name))
           ?? model.userData.animations[0];
         const walk = mixer.clipAction(walkClip);
         walk.play();
-        // idle clip ships as a sibling GLB on the same auto-rig: track names match
-        let idle = null;
-        const idleTpl = G.assets?.cache?.get('ped-civilian-idle');
-        const idleClip = idleTpl?.userData?.animations?.[0];
-        if (idleClip) {
-          idle = mixer.clipAction(idleClip);
-          idle.play();
-          idle.weight = 0;
-        }
-        this.skinned = { mixer, walk, idle };
+        // idle + run clips ship as sibling GLBs on the same auto-rig
+        const sibling = (name) => {
+          const clip = G.assets?.cache?.get(name)?.userData?.animations?.[0];
+          if (!clip) return null;
+          const a = mixer.clipAction(clip);
+          a.play();
+          a.weight = 0;
+          return a;
+        };
+        this.skinned = { mixer, walk, idle: sibling('ped-civilian-idle'), run: sibling('ped-civilian-run') };
       }
     }
     if (!this.skinned) {
@@ -134,6 +142,7 @@ export class Ped {
     const step = Math.min(speed * dt, d);
     this.position.x += Math.sin(this.yaw) * step;
     this.position.z += Math.cos(this.yaw) * step;
+    this.position.y = (this.G.terrain?.heightAt(this.position.x, this.position.z) ?? 0) + 0.05;
     this.speed = speed;
     return d < 0.4;
   }
@@ -185,14 +194,19 @@ export class Ped {
     if (this.dead) return;
     this.mesh.rotation.y = this.yaw;
     if (this.skinned) {
-      const { mixer, walk, idle } = this.skinned;
+      const { mixer, walk, idle, run } = this.skinned;
       const moving = this.speed > 0.12;
+      const running = run && this.speed > 3.2;
       if (idle) {
-        // crossfade walk <-> idle by movement speed
-        const target = moving ? 1 : 0;
-        walk.weight += (target - walk.weight) * Math.min(1, 8 * dt);
-        idle.weight = 1 - walk.weight;
+        // three-way blend: idle <-> walk <-> run by movement speed
+        const wWalk = moving && !running ? 1 : 0;
+        const wRun = running ? 1 : 0;
+        const k = Math.min(1, 8 * dt);
+        walk.weight += (wWalk - walk.weight) * k;
+        if (run) run.weight += (wRun - run.weight) * k;
+        idle.weight = Math.max(0, 1 - walk.weight - (run?.weight ?? 0));
         walk.timeScale = Math.max(0.55, this.speed / 1.55);
+        if (run) run.timeScale = Math.max(0.7, this.speed / 5.0);
       } else {
         walk.timeScale = moving ? Math.max(0.55, this.speed / 1.55) : 0;
         if (!moving) walk.time = 0.35; // neutral standing frame

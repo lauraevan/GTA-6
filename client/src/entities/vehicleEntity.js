@@ -284,6 +284,13 @@ export class VehicleEntity {
         (G.weather?.traction ?? 1) * (inWater ? 0.3 : 1),
         inWater ? 0.1 : engineFactor, this.tires, this.mods);
       if (inWater) this.applyDamage(6 * dt, null, false, true);
+      // safety net: cannon heightfield rays can transiently miss on slopes —
+      // never let the chassis fall through the terrain
+      const groundY = (G.terrain?.heightAt(this.vp.body.position.x, this.vp.body.position.z) ?? 0);
+      if (this.vp.body.position.y < groundY + this.stanceY - 1.6) {
+        this.vp.body.position.y = groundY + this.stanceY + 0.2;
+        if (this.vp.body.velocity.y < 0) this.vp.body.velocity.y = 0;
+      }
       // sync mesh
       this.mesh.position.copy(this.vp.body.position);
       this.mesh.quaternion.copy(this.vp.body.quaternion);
@@ -345,12 +352,13 @@ export class VehicleEntity {
       }
     }
 
-    // headlights (driven at night)
+    // headlights (driven & traffic at night) + brake lights
     const night = (G.daynight?.sunFactor ?? 1) < 0.35;
     if (this.parts.headMat) {
-      const on = night && this.mode === 'driven' && !this.dead;
-      this.parts.headMat.emissiveIntensity = on ? 2.2 : 0;
-      this.parts.tailMat.emissiveIntensity = on ? 1.4 : (this.mode === 'driven' && this.controls.brake > 0 ? 1.8 : 0);
+      const running = (this.mode === 'driven' || this.mode === 'traffic') && !this.dead;
+      const braking = this.mode === 'driven' ? this.controls.brake > 0 : !!this._braking;
+      this.parts.headMat.emissiveIntensity = night && running ? 2.2 : 0;
+      this.parts.tailMat.emissiveIntensity = braking ? 2.0 : (night && running ? 1.4 : 0);
     }
 
     if (this.wreckT !== undefined) this.wreckT -= dt;

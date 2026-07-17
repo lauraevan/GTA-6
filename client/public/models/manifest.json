@@ -86,6 +86,17 @@
       "fitAxis": "y",
       "ground": true,
       "yaw": 1.5708
+    },
+    "ped-civilian-run": {
+      "file": "ped-civilian-run.glb",
+      "fit": [
+        0.5,
+        1.75,
+        0.5
+      ],
+      "fitAxis": "y",
+      "ground": true,
+      "yaw": 1.5708
     }
   }
 }
